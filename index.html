@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=1280">
+    <title>Playable - The AAA Masterpiece</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/materialsLibrary/babylonjs.materials.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Nunito:wght@600;800&display=swap');
+
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #000; font-family: 'Inter', sans-serif; }
+        #renderCanvas { width: 100%; height: 100%; outline: none; touch-action: none; }
+        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; }
+
+        .instruction-badge {
+            position: absolute; bottom: 5%; left: 50%; transform: translateX(-50%);
+            background: rgba(255, 255, 255, 0.15); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.4); color: white; 
+            padding: 15px 40px; border-radius: 60px;
+            font-size: 20px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5); transition: opacity 0.5s; font-family: 'Nunito', sans-serif;
+        }
+
+        /* 🚀 PILL-SHAPED PROMPT BOX */
+        #monolith-text-container {
+            position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%);
+            width: 850px; opacity: 0; display: flex; align-items: center; gap: 20px;
+            background: rgba(255, 255, 255, 0.15); backdrop-filter: blur(40px); -webkit-backdrop-filter: blur(40px);
+            border: 2px solid rgba(255, 255, 255, 0.6); border-top: 2px solid rgba(255, 255, 255, 0.9);
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.4), inset 0 0 30px rgba(255, 255, 255, 0.4), 0 0 40px rgba(192, 132, 252, 0.3);
+            border-radius: 100px; padding: 2.5rem 3.5rem; text-align: left; transition: all 1s ease;
+        }
+
+        .ancient-runes {
+            color: #0f172a; font-family: 'Nunito', sans-serif; font-size: 28px; font-weight: 800; 
+            line-height: 1.6; flex-grow: 1; text-shadow: 0 2px 10px rgba(255, 255, 255, 0.8); 
+        }
+
+        .icon-btn { font-size: 45px; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.2)); }
+        
+        .status-panel {
+            position: absolute; opacity: 0;
+            background: rgba(10, 15, 30, 0.5); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.2); border-left: 5px solid #00ffff;
+            color: white; font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 24px;
+            padding: 20px 40px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="renderCanvas"></canvas>
+
+    <div id="ui-layer">
+        <div id="monolith-text-container">
+            <div class="icon-btn">🚀</div>
+            <p class="ancient-runes"><span id="typewriter"></span></p>
+            <div class="icon-btn">🎙️</div>
+        </div>
+        
+        <div id="status-1" class="status-panel" style="top: 25%; left: 8%;">[ FORGING UNIVERSE... ]</div>
+        <div id="status-2" class="status-panel" style="top: 65%; right: 8%; border-left-color: #c084fc;">[ ZERO LIMITS APPLIED ]</div>
+
+        <div id="instruction" class="instruction-badge">Tap to begin</div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById("renderCanvas");
+        const engine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true, antialias: true });
+
+        let currentSceneState = 0;
+        let mainCamera, shellTop;
+        let mascotGroup, sparkSystem; 
+        let fishSwarm = []; 
+
+        function smartTypewriter(text, elementId, speed = 30) {
+            const el = document.getElementById(elementId);
+            el.innerHTML = "";
+            let i = 0, currentText = "";
+            function type() {
+                if (i < text.length) {
+                    currentText += text.charAt(i); i++;
+                    el.innerHTML = currentText + "<span style='border-right: 4px solid #0f172a; margin-left: 4px; animation: blink 1s infinite;'></span>"; 
+                    setTimeout(type, speed);
+                }
+            }
+            type();
+        }
+
+        const createScene = async function () {
+            const scene = new BABYLON.Scene(engine);
+            
+            // Ocean Fog initially
+            scene.clearColor = new BABYLON.Color4(0.01, 0.05, 0.15, 1); 
+            scene.fogMode = BABYLON.Scene.FOGMODE_EXP2;
+            scene.fogColor = new BABYLON.Color3(0.01, 0.05, 0.15);
+            scene.fogDensity = 0.04; 
+
+            mainCamera = new BABYLON.UniversalCamera("MainCamera", new BABYLON.Vector3(0, 6, -20), scene);
+            
+            // 🎬 HDR PIPELINE
+            scene.environmentTexture = BABYLON.CubeTexture.CreateFromPrefilteredData("https://playground.babylonjs.com/textures/environment.dds", scene);
+            const pipeline = new BABYLON.DefaultRenderingPipeline("defaultPipeline", true, scene, [mainCamera]);
+            pipeline.samples = 4; pipeline.bloomEnabled = true; pipeline.bloomThreshold = 0.8; 
+            pipeline.imageProcessingEnabled = true; pipeline.imageProcessing.toneMappingEnabled = true;
+
+            // ☀️ REAL SUN & SHADOWS
+            const sunLight = new BABYLON.DirectionalLight("sunLight", new BABYLON.Vector3(-0.5, -1, -0.5), scene);
+            sunLight.position = new BABYLON.Vector3(100, 200, 100); sunLight.intensity = 2.0;
+            const shadowGenerator = new BABYLON.ShadowGenerator(1024, sunLight);
+            shadowGenerator.useBlurExponentialShadowMap = true; shadowGenerator.blurKernel = 32;
+
+            const skyMaterial = new BABYLON.SkyMaterial("skyMaterial", scene);
+            skyMaterial.backFaceCulling = false; skyMaterial.useSunPosition = true; skyMaterial.sunPosition = sunLight.position;
+            const skybox = BABYLON.MeshBuilder.CreateBox("skyBox", {size: 1000.0}, scene); skybox.material = skyMaterial;
+
+            // ==========================================
+            // 🌊 SCENE 1: OCEAN
+            // ==========================================
+            const rock = BABYLON.MeshBuilder.CreateSphere("rock", {diameter: 12}, scene);
+            rock.position.y = -4; rock.scaling.y = 0.4;
+            const rockMat = new BABYLON.PBRMaterial("rockMat", scene);
+            rockMat.albedoColor = new BABYLON.Color3(0.15, 0.2, 0.2); rockMat.roughness = 0.8; 
+            rock.material = rockMat; shadowGenerator.addShadowCaster(rock);
+
+            const waterMesh = BABYLON.MeshBuilder.CreateGround("water", {width: 200, height: 200}, scene);
+            const water = new BABYLON.WaterMaterial("waterMat", scene, new BABYLON.Vector2(512, 512));
+            water.bumpTexture = new BABYLON.Texture("https://playground.babylonjs.com/textures/waterbump.png", scene);
+            water.waterColor = new BABYLON.Color3(0.0, 0.3, 0.6); waterMesh.material = water;
+            water.addToRenderList(skybox); water.addToRenderList(rock);
+
+            const shellBottom = BABYLON.MeshBuilder.CreateSphere("shellB", {diameter: 5, slice: 0.5}, scene);
+            shellBottom.rotation.x = Math.PI; shellBottom.position.y = -0.5;
+            shellTop = BABYLON.MeshBuilder.CreateSphere("shellT", {diameter: 5, slice: 0.5}, scene);
+            shellTop.position.y = -0.5; shellTop.setPivotPoint(new BABYLON.Vector3(0, 0, 2.5));
+            const shellMat = new BABYLON.PBRMaterial("shellMat", scene);
+            shellMat.albedoColor = new BABYLON.Color3(0.9, 0.9, 0.95); shellMat.roughness = 0.1; 
+            shellBottom.material = shellMat; shellTop.material = shellMat;
+            water.addToRenderList(shellTop); shadowGenerator.addShadowCaster(shellTop);
+
+            const fishMat = new BABYLON.PBRMaterial("fishMat", scene);
+            fishMat.albedoColor = new BABYLON.Color3(1, 0.8, 0.1); fishMat.emissiveColor = new BABYLON.Color3(0.2, 0.1, 0);
+            for(let i=0; i<12; i++) {
+                let fish = BABYLON.MeshBuilder.CreateCapsule("fish", {height: 0.8, radius: 0.2}, scene);
+                fish.rotation.z = Math.PI / 2; fish.material = fishMat; shadowGenerator.addShadowCaster(fish);
+                fishSwarm.push({ mesh: fish, angle: Math.random() * Math.PI * 2, speed: 0.01 + Math.random() * 0.015, radius: 4 + Math.random() * 5, height: Math.random() * 3 });
+            }
+
+            // ==========================================
+            // 🏜️ SCENE 2: DESERT
+            // ==========================================
+            const desert = BABYLON.MeshBuilder.CreateGround("desert", {width: 500, height: 500, subdivisions: 80}, scene);
+            desert.position.y = 40;
+            const positions = desert.getVerticesData(BABYLON.VertexBuffer.PositionKind);
+            for (let i = 0; i < positions.length; i += 3) {
+                positions[i+1] = Math.sin(positions[i]/12) * Math.cos(positions[i+2]/12) * 6; 
+            }
+            desert.setVerticesData(BABYLON.VertexBuffer.PositionKind, positions);
+            const sandMat = new BABYLON.PBRMaterial("sand", scene);
+            sandMat.albedoColor = new BABYLON.Color3(0.85, 0.70, 0.50); sandMat.roughness = 1.0; 
+            desert.material = sandMat; desert.receiveShadows = true;
+
+            const monolith = BABYLON.MeshBuilder.CreateBox("monolith", {width: 15, height: 80, depth: 10}, scene);
+            monolith.position = new BABYLON.Vector3(-45, 80, 40); monolith.rotation.y = Math.PI / 6; 
+            const stoneMat = new BABYLON.PBRMaterial("stone", scene);
+            stoneMat.albedoColor = new BABYLON.Color3(0.08, 0.08, 0.09); stoneMat.roughness = 0.6; monolith.material = stoneMat;
+            shadowGenerator.addShadowCaster(monolith);
+
+            // ==========================================
+            // ☁️ SCENE 3: CLOUDS
+            // ==========================================
+            const clouds = new BABYLON.ParticleSystem("clouds", 300, scene);
+            clouds.particleTexture = new BABYLON.Texture("https://www.babylonjs.com/assets/Cloud.png", scene);
+            clouds.emitter = new BABYLON.Vector3(0, 145, 0); 
+            clouds.minEmitBox = new BABYLON.Vector3(-100, -10, -50); clouds.maxEmitBox = new BABYLON.Vector3(100, 10, 50);
+            clouds.color1 = new BABYLON.Color4(1, 1, 1, 0.9); clouds.color2 = new BABYLON.Color4(0.9, 0.9, 0.95, 0.7);
+            clouds.minSize = 15; clouds.maxSize = 40; clouds.start();
+
+            const spaceship = BABYLON.MeshBuilder.CreateCylinder("ship", {height: 25, diameterTop: 2, diameterBottom: 8, tessellation: 12}, scene);
+            spaceship.position = new BABYLON.Vector3(12, 150, 20); spaceship.rotation.z = -Math.PI / 4; 
+            const shipMat = new BABYLON.PBRMaterial("shipMat", scene);
+            shipMat.albedoColor = new BABYLON.Color3(0.05, 0.05, 0.05); shipMat.metallic = 0.8; shipMat.roughness = 0.2;
+            spaceship.material = shipMat; shadowGenerator.addShadowCaster(spaceship);
+
+            mascotGroup = new BABYLON.TransformNode("mascot", scene);
+            mascotGroup.position = new BABYLON.Vector3(-8, 145, 10);
+            
+            const head = BABYLON.MeshBuilder.CreateSphere("head", {diameter: 3}, scene); head.parent = mascotGroup; head.position.y = 4; 
+            const shirt = BABYLON.MeshBuilder.CreateCylinder("shirt", {height: 3, diameter: 2.5}, scene); shirt.parent = mascotGroup; shirt.position.y = 0.5; 
+            const gloveR = BABYLON.MeshBuilder.CreateSphere("gloveR", {diameter: 1.5}, scene); gloveR.parent = mascotGroup; gloveR.position.set(3, 2, 3); 
+
+            sparkSystem = new BABYLON.ParticleSystem("sparks", 500, scene);
+            sparkSystem.particleTexture = new BABYLON.Texture("https://www.babylonjs.com/assets/Flare.png", scene);
+            sparkSystem.emitter = gloveR; sparkSystem.color1 = new BABYLON.Color4(1, 0.8, 0, 1); 
+            sparkSystem.minSize = 0.2; sparkSystem.maxSize = 0.5; sparkSystem.emitRate = 0; 
+
+            scene.onBeforeRenderObservable.add(() => {
+                let time = performance.now() * 0.005;
+                fishSwarm.forEach(f => {
+                    f.angle -= f.speed; f.mesh.position.x = Math.cos(f.angle) * f.radius; f.mesh.position.z = Math.sin(f.angle) * f.radius;
+                    f.mesh.position.y = f.height + Math.sin(f.angle * 2) * 0.5; f.mesh.rotation.y = -f.angle; 
+                });
+                mascotGroup.position.y = 145 + Math.sin(time) * 1.5; head.position.y = 4 + Math.sin(time * 2) * 0.3;
+                gloveR.position.x = 3 + Math.sin(time * 3) * 1.5; gloveR.position.y = 2 + Math.cos(time * 4) * 1.5;
+            });
+
+            return scene;
+        };
+
+        const advanceScene = () => {
+            currentSceneState++;
+            const instruction = document.getElementById('instruction'); instruction.style.opacity = '0';
+
+            if (currentSceneState === 1) {
+                gsap.to(mainCamera.position, { z: -10, y: 3, duration: 2, ease: "power2.inOut" });
+                gsap.to(shellTop.rotation, { x: -Math.PI / 2.2, duration: 3, ease: "power2.inOut" });
+                setTimeout(() => { instruction.innerText = "Ascend to Desert"; instruction.style.opacity = '1'; }, 3000);
+            } 
+            else if (currentSceneState === 2) {
+                gsap.to(mainCamera.position, { y: 48, z: -35, duration: 3, ease: "power3.inOut" });
+                gsap.to(mainCamera.getScene(), { fogDensity: 0.001, duration: 2, delay: 1 }); // Clear fog for HDR sky
+                setTimeout(() => {
+                    document.getElementById('monolith-text-container').style.opacity = '1';
+                    const userPrompt = "create a 3d space shooter game 🎮 with first person view, in space enemies comes towards me and i shoots them with a laser shooter";
+                    smartTypewriter(userPrompt, "typewriter", 30);
+                }, 2000);
+                setTimeout(() => { instruction.innerText = "Launch into clouds"; instruction.style.opacity = '1'; }, 7000);
+            }
+            else if (currentSceneState === 3) {
+                document.getElementById('monolith-text-container').style.opacity = '0'; 
+                gsap.to(mainCamera.position, { y: 150, z: -10, duration: 4, ease: "power2.inOut" });
+                gsap.to(mainCamera.rotation, { x: 0.1, y: 0.2, duration: 4 }); 
+                setTimeout(() => { sparkSystem.emitRate = 100; }, 3000);
+                setTimeout(() => {
+                    gsap.to("#status-1", { opacity: 1, x: 20, duration: 1 });
+                    gsap.to("#status-2", { opacity: 1, x: -20, duration: 1, delay: 0.5 });
+                }, 3000);
+                setTimeout(() => { instruction.innerText = "Enter the cockpit"; instruction.style.opacity = '1'; }, 8000);
+            }
+        };
+
+        createScene().then(scene => {
+            engine.runRenderLoop(() => { scene.render(); });
+            window.addEventListener("pointerdown", () => { if (currentSceneState < 4) advanceScene(); });
+        });
+    </script>
+</body>
+</html>
+
