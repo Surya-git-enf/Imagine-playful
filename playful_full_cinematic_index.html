@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Playful — AI-Powered Worlds</title>
+  <style>
+    :root {
+      --bg1: #050816;
+      --bg2: #17082a;
+      --bg3: #0b1230;
+      --glass: rgba(255,255,255,0.08);
+      --glass-border: rgba(255,255,255,0.16);
+      --text: #f4f7ff;
+      --muted: rgba(244,247,255,0.76);
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow-x: hidden;
+      background: radial-gradient(circle at top, #1c1040 0%, var(--bg2) 28%, var(--bg1) 68%, #02030a 100%);
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      color: var(--text);
+    }
+
+    body {
+      min-height: 500vh; /* scroll runway */
+    }
+
+    #canvasWrap {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    #renderCanvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      outline: none;
+      touch-action: none;
+    }
+
+    .overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 2;
+      pointer-events: none;
+    }
+
+    .topbar {
+      position: absolute;
+      top: 18px;
+      left: 18px;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 16px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.12);
+      backdrop-filter: blur(18px);
+      box-shadow: 0 12px 40px rgba(0,0,0,0.25);
+      pointer-events: auto;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #ff8a00, #7a5cff, #34b7ff);
+      box-shadow: 0 0 18px rgba(156,112,255,0.9);
+    }
+
+    .brand {
+      font-size: 13px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.92);
+    }
+
+    .right-actions {
+      position: absolute;
+      top: 18px;
+      right: 18px;
+      display: flex;
+      gap: 10px;
+      pointer-events: auto;
+    }
+
+    .mini-btn {
+      padding: 11px 16px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.16);
+      background: rgba(255,255,255,0.08);
+      backdrop-filter: blur(16px);
+      color: white;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      cursor: pointer;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.18);
+      transition: transform 180ms ease, background 180ms ease;
+    }
+
+    .mini-btn:hover {
+      transform: translateY(-1px);
+      background: rgba(255,255,255,0.13);
+    }
+
+    .hero-copy {
+      position: absolute;
+      left: 50%;
+      top: 13vh;
+      transform: translateX(-50%);
+      width: min(900px, calc(100vw - 32px));
+      text-align: center;
+      pointer-events: auto;
+    }
+
+    .headline {
+      margin: 0;
+      font-size: clamp(42px, 6vw, 88px);
+      line-height: 0.95;
+      letter-spacing: -0.05em;
+      text-shadow: 0 20px 60px rgba(0,0,0,0.35);
+    }
+
+    .headline .accent {
+      background: linear-gradient(90deg, #ffffff 0%, #ffab3d 28%, #73c8ff 58%, #ff6bd6 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+
+    .glass-box {
+      margin: 22px auto 0;
+      width: min(700px, calc(100vw - 32px));
+      border-radius: 26px;
+      padding: 22px 24px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.14), rgba(255,255,255,0.06));
+      border: 1px solid rgba(255,255,255,0.18);
+      box-shadow: 0 28px 80px rgba(0,0,0,0.28);
+      backdrop-filter: blur(22px);
+    }
+
+    .glass-text {
+      font-size: clamp(18px, 2.1vw, 25px);
+      line-height: 1.5;
+      color: rgba(255,255,255,0.93);
+      margin: 0;
+    }
+
+    .subline {
+      margin: 16px 0 0;
+      font-size: clamp(16px, 1.8vw, 22px);
+      color: rgba(243,247,255,0.84);
+      letter-spacing: 0.02em;
+    }
+
+    .pill-row {
+      margin-top: 22px;
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      flex-wrap: wrap;
+      pointer-events: auto;
+    }
+
+    .pill {
+      padding: 12px 18px;
+      border-radius: 999px;
+      font-size: 14px;
+      font-weight: 700;
+      color: rgba(255,255,255,0.95);
+      border: 1px solid rgba(255,255,255,0.18);
+      background: linear-gradient(135deg, rgba(255,138,0,0.78), rgba(0,159,255,0.62), rgba(255,86,185,0.72));
+      box-shadow: 0 14px 30px rgba(0,0,0,0.24);
+      min-width: 120px;
+      text-align: center;
+    }
+
+    .cta-row {
+      margin-top: 24px;
+      display: flex;
+      justify-content: center;
+      pointer-events: auto;
+    }
+
+    .build-btn {
+      padding: 16px 28px;
+      min-width: 220px;
+      border-radius: 999px;
+      border: 0;
+      color: #08101a;
+      font-weight: 900;
+      letter-spacing: 0.02em;
+      background: linear-gradient(90deg, #ffffff 0%, #ffb144 25%, #6fd2ff 62%, #ff86d9 100%);
+      box-shadow: 0 22px 40px rgba(255,173,76,0.18), 0 20px 60px rgba(98,178,255,0.14);
+      cursor: pointer;
+      transition: transform 180ms ease, filter 180ms ease;
+    }
+
+    .build-btn:hover {
+      transform: translateY(-2px) scale(1.01);
+      filter: brightness(1.03);
+    }
+
+    .scroll-hint {
+      position: fixed;
+      left: 50%;
+      bottom: 18px;
+      transform: translateX(-50%);
+      z-index: 3;
+      font-size: 13px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.75);
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.12);
+      backdrop-filter: blur(14px);
+      padding: 10px 14px;
+      border-radius: 999px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.18);
+      pointer-events: none;
+    }
+
+    .progress {
+      position: fixed;
+      left: 18px;
+      bottom: 18px;
+      z-index: 3;
+      width: min(320px, calc(100vw - 36px));
+      padding: 12px 14px;
+      border-radius: 18px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.12);
+      backdrop-filter: blur(16px);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.18);
+      pointer-events: none;
+    }
+
+    .progress-label {
+      font-size: 12px;
+      color: rgba(255,255,255,0.76);
+      margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .track {
+      height: 8px;
+      border-radius: 999px;
+      overflow: hidden;
+      background: rgba(255,255,255,0.08);
+    }
+
+    .fill {
+      width: 0%;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, #ff8a00, #7a5cff, #39c8ff, #ff60c8);
+      box-shadow: 0 0 18px rgba(122,92,255,0.7);
+    }
+
+    @media (max-width: 760px) {
+      .hero-copy { top: 11vh; }
+      .right-actions { top: auto; bottom: 18px; right: 18px; }
+      .topbar { max-width: calc(100vw - 36px); }
+      .glass-box { padding: 18px; }
+      .build-btn { width: 100%; }
+      .pill { min-width: 96px; }
+    }
+  </style>
+
+  <script src="https://cdn.babylonjs.com/babylon.js"></script>
+  <script src="https://cdn.babylonjs.com/gui/babylon.gui.min.js"></script>
+  <script src="https://cdn.babylonjs.com/proceduralTexturesLibrary/babylonjs.proceduralTextures.min.js"></script>
+  <script src="https://cdn.babylonjs.com/materialsLibrary/babylonjs.materials.min.js"></script>
+</head>
+<body>
+  <div id="canvasWrap">
+    <canvas id="renderCanvas" tabindex="0"></canvas>
+  </div>
+
+  <div class="overlay">
+    <div class="topbar">
+      <span class="dot"></span>
+      <span class="brand">PLAYFUL — AI WORLD BUILDER</span>
+    </div>
+
+    <div class="right-actions">
+      <button class="mini-btn" id="signinBtn">Sign in</button>
+      <button class="mini-btn" id="signupBtn">Sign up</button>
+    </div>
+
+    <section class="hero-copy">
+      <h1 class="headline"><span class="accent">Build worlds</span> from your words.</h1>
+      <div class="glass-box">
+        <p class="glass-text">AI-powered worlds from your words.</p>
+      </div>
+      <p class="subline">Create, dive in, dominate.</p>
+
+      <div class="pill-row">
+        <div class="pill">Generate</div>
+        <div class="pill">Explore</div>
+        <div class="pill">Play</div>
+      </div>
+
+      <div class="cta-row">
+        <button class="build-btn" id="buildNowBtn">Build now</button>
+      </div>
+    </section>
+
+    <div class="progress">
+      <div class="progress-label">
+        <span>Scroll to launch the joystick</span>
+        <span id="progressPct">0%</span>
+      </div>
+      <div class="track"><div class="fill" id="progressFill"></div></div>
+    </div>
+
+    <div class="scroll-hint">Scroll down to enter the hologram</div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('renderCanvas');
+    const engine = new BABYLON.Engine(canvas, true, {
+      preserveDrawingBuffer: true,
+      stencil: true,
+      antialias: true,
+      adaptToDeviceRatio: true
+    });
+
+    const scene = new BABYLON.Scene(engine);
+    scene.clearColor = new BABYLON.Color4(0.02, 0.03, 0.08, 1);
+    scene.fogMode = BABYLON.Scene.FOGMODE_EXP2;
+    scene.fogDensity = 0.008;
+    scene.fogColor = new BABYLON.Color3(0.05, 0.07, 0.14);
+
+    const camera = new BABYLON.ArcRotateCamera(
+      'camera',
+      -Math.PI / 2,
+      Math.PI / 2.18,
+      22,
+      new BABYLON.Vector3(0, 2.0, 0),
+      scene
+    );
+    camera.attachControl(canvas, true);
+    camera.lowerRadiusLimit = 4.5;
+    camera.upperRadiusLimit = 30;
+    camera.wheelPrecision = 120;
+    camera.panningSensibility = 0;
+    camera.inertia = 0.88;
+
+    const hemi = new BABYLON.HemisphericLight('hemi', new BABYLON.Vector3(0, 1, 0), scene);
+    hemi.intensity = 0.95;
+    hemi.diffuse = new BABYLON.Color3(1, 0.95, 1);
+    hemi.groundColor = new BABYLON.Color3(0.05, 0.08, 0.15);
+
+    const key = new BABYLON.DirectionalLight('key', new BABYLON.Vector3(-0.25, -1, -0.35), scene);
+    key.position = new BABYLON.Vector3(10, 18, 10);
+    key.intensity = 2.4;
+
+    const rim = new BABYLON.PointLight('rim', new BABYLON.Vector3(0, 4, -6), scene);
+    rim.diffuse = new BABYLON.Color3(0.75, 0.45, 1.0);
+    rim.intensity = 14;
+
+    const glow = new BABYLON.GlowLayer('glow', scene, { mainTextureSamples: 4 });
+    glow.intensity = 1.4;
+
+    const pipeline = new BABYLON.DefaultRenderingPipeline('pipeline', true, scene, [camera]);
+    pipeline.bloomEnabled = true;
+    pipeline.bloomThreshold = 0.55;
+    pipeline.bloomKernel = 64;
+    pipeline.bloomWeight = 0.6;
+    pipeline.imageProcessingEnabled = true;
+    pipeline.fxaaEnabled = true;
+    pipeline.chromaticAberrationEnabled = true;
+    pipeline.chromaticAberration.aberrationAmount = 12;
+
+    // Background / stage
+    const skybox = BABYLON.MeshBuilder.CreateBox('skybox', { size: 280 }, scene);
+    const skyMat = new BABYLON.StandardMaterial('skyMat', scene);
+    skyMat.backFaceCulling = false;
+    skyMat.disableLighting = true;
+    skyMat.diffuseColor = BABYLON.Color3.Black();
+    skyMat.specularColor = BABYLON.Color3.Black();
+    skyMat.emissiveColor = new BABYLON.Color3(0.02, 0.03, 0.08);
+    skybox.material = skyMat;
+
+    const ground = BABYLON.MeshBuilder.CreateGround('ground', { width: 120, height: 120 }, scene);
+    const groundMat = new BABYLON.PBRMaterial('groundMat', scene);
+    groundMat.albedoColor = new BABYLON.Color3(0.05, 0.08, 0.14);
+    groundMat.metallic = 0.08;
+    groundMat.roughness = 0.62;
+    groundMat.environmentIntensity = 0.9;
+    ground.material = groundMat;
+    ground.position.y = -0.02;
+
+    const halo = BABYLON.MeshBuilder.CreateTorus('halo', { diameter: 15, thickness: 0.16, tessellation: 96 }, scene);
+    halo.rotation.x = Math.PI / 2;
+    halo.position.y = 1.0;
+    const haloMat = new BABYLON.StandardMaterial('haloMat', scene);
+    haloMat.diffuseColor = new BABYLON.Color3(0, 0, 0);
+    haloMat.emissiveColor = new BABYLON.Color3(0.15, 0.45, 1.0);
+    halo.material = haloMat;
+    glow.addIncludedOnlyMesh(halo);
+
+    // Main joystick world
+    const root = new BABYLON.TransformNode('root', scene);
+    root.position = new BABYLON.Vector3(0, 2.0, 0);
+
+    const joystickRoot = new BABYLON.TransformNode('joystickRoot', scene);
+    joystickRoot.parent = root;
+    joystickRoot.position = new BABYLON.Vector3(0, 0, 0);
+
+    // Upright controller-like shell, original styling and colors
+    const body = BABYLON.MeshBuilder.CreateBox('body', {
+      width: 6.8,
+      height: 3.2,
+      depth: 2.3,
+      segments: 8
+    }, scene);
+    body.parent = joystickRoot;
+    body.position.y = 0.4;
+    body.rotation.z = Math.PI / 2;
+    body.rotation.x = 0.08;
+    body.rotation.y = 0.0;
+
+    const bodyMat = new BABYLON.PBRMaterial('bodyMat', scene);
+    bodyMat.albedoColor = new BABYLON.Color3(0.94, 0.95, 0.98);
+    bodyMat.metallic = 0.95;
+    bodyMat.roughness = 0.12;
+    bodyMat.clearCoat.isEnabled = true;
+    bodyMat.clearCoat.intensity = 1.0;
+    body.material = bodyMat;
+
+    const gripL = BABYLON.MeshBuilder.CreateSphere('gripL', { diameterX: 1.9, diameterY: 2.8, diameterZ: 1.6, segments: 32 }, scene);
+    gripL.parent = joystickRoot;
+    gripL.position = new BABYLON.Vector3(-3.2, -0.25, 0);
+    gripL.scaling.x = 0.9;
+    gripL.rotation.z = -0.18;
+    const gripR = gripL.clone('gripR');
+    gripR.parent = joystickRoot;
+    gripR.position.x = 3.2;
+    gripR.rotation.z = 0.18;
+
+    const accentMat = new BABYLON.PBRMaterial('accentMat', scene);
+    accentMat.albedoColor = new BABYLON.Color3(0.87, 0.9, 0.97);
+    accentMat.metallic = 0.9;
+    accentMat.roughness = 0.16;
+    gripL.material = accentMat;
+    gripR.material = accentMat;
+
+    // Color gradient strips
+    function makeStrip(name, color, x, y, z, w, h, d, rotZ = 0) {
+      const m = BABYLON.MeshBuilder.CreateBox(name, { width: w, height: h, depth: d }, scene);
+      m.parent = joystickRoot;
+      m.position = new BABYLON.Vector3(x, y, z);
+      m.rotation.z = rotZ;
+      const mat = new BABYLON.StandardMaterial(name + 'Mat', scene);
+      mat.diffuseColor = color.scale(0.9);
+      mat.emissiveColor = color.scale(0.6);
+      m.material = mat;
+      glow.addIncludedOnlyMesh(m);
+      return m;
+    }
+
+    makeStrip('strip1', new BABYLON.Color3(1.0, 0.82, 0.25), 0, 0.95, -0.88, 4.9, 0.18, 0.12, 0.03);
+    makeStrip('strip2', new BABYLON.Color3(0.34, 0.76, 1.0), 0, 0.62, -0.88, 4.9, 0.18, 0.12, -0.02);
+    makeStrip('strip3', new BABYLON.Color3(1.0, 0.45, 0.82), 0, 0.30, -0.88, 4.9, 0.18, 0.12, 0.02);
+
+    const slotHousing = BABYLON.MeshBuilder.CreateBox('slotHousing', { width: 1.55, height: 1.15, depth: 0.18 }, scene);
+    slotHousing.parent = joystickRoot;
+    slotHousing.position = new BABYLON.Vector3(0, 0.45, 1.18);
+    const slotHousingMat = new BABYLON.StandardMaterial('slotHousingMat', scene);
+    slotHousingMat.emissiveColor = new BABYLON.Color3(0.05, 0.03, 0.1);
+    slotHousingMat.diffuseColor = new BABYLON.Color3(0.08, 0.08, 0.12);
+    slotHousing.material = slotHousingMat;
+
+    const slot = BABYLON.MeshBuilder.CreateBox('slot', { width: 1.08, height: 0.52, depth: 0.16 }, scene);
+    slot.parent = joystickRoot;
+    slot.position = new BABYLON.Vector3(0, 0.45, 1.31);
+    const slotMat = new BABYLON.StandardMaterial('slotMat', scene);
+    slotMat.diffuseColor = new BABYLON.Color3(0.01, 0.01, 0.02);
+    slotMat.emissiveColor = new BABYLON.Color3(0.04, 0.05, 0.08);
+    slot.material = slotMat;
+
+    const centerBar = BABYLON.MeshBuilder.CreateCylinder('centerBar', { diameter: 0.16, height: 2.1, tessellation: 12 }, scene);
+    centerBar.parent = joystickRoot;
+    centerBar.position = new BABYLON.Vector3(0, -0.35, 0.26);
+    centerBar.rotation.z = Math.PI / 2;
+    const centerBarMat = new BABYLON.StandardMaterial('centerBarMat', scene);
+    centerBarMat.emissiveColor = new BABYLON.Color3(0.85, 0.45, 1.0);
+    centerBarMat.diffuseColor = new BABYLON.Color3(0.25, 0.1, 0.4);
+    centerBar.material = centerBarMat;
+
+    const triggerL = BABYLON.MeshBuilder.CreateBox('triggerL', { width: 0.82, height: 0.22, depth: 0.52 }, scene);
+    triggerL.parent = joystickRoot;
+    triggerL.position = new BABYLON.Vector3(-2.35, 1.34, -0.15);
+    triggerL.rotation.z = 0.45;
+    const triggerR = triggerL.clone('triggerR');
+    triggerR.parent = joystickRoot;
+    triggerR.position.x = 2.35;
+    triggerR.rotation.z = -0.45;
+    triggerL.material = bodyMat;
+    triggerR.material = bodyMat;
+
+    const stickDisc = BABYLON.MeshBuilder.CreateDisc('stickDisc', { radius: 0.52, tessellation: 48 }, scene);
+    stickDisc.parent = joystickRoot;
+    stickDisc.position = new BABYLON.Vector3(0, 0.55, 0.8);
+    stickDisc.rotation.x = Math.PI / 2;
+    const stickMat = new BABYLON.StandardMaterial('stickMat', scene);
+    stickMat.diffuseColor = new BABYLON.Color3(0.18, 0.2, 0.25);
+    stickMat.emissiveColor = new BABYLON.Color3(0.02, 0.05, 0.08);
+    stickDisc.material = stickMat;
+
+    const buttonColors = [
+      new BABYLON.Color3(1.0, 0.48, 0.18),
+      new BABYLON.Color3(0.25, 0.8, 1.0),
+      new BABYLON.Color3(1.0, 0.3, 0.78),
+      new BABYLON.Color3(0.9, 0.95, 0.32)
+    ];
+    const buttonOffsets = [
+      [-0.62, 0.55, 0.85],
+      [-0.24, 0.77, 0.82],
+      [0.14, 0.57, 0.9],
+      [0.48, 0.76, 0.86]
+    ];
+    buttonColors.forEach((c, i) => {
+      const b = BABYLON.MeshBuilder.CreateSphere(`btn_${i}`, { diameter: 0.18, segments: 16 }, scene);
+      b.parent = joystickRoot;
+      b.position = new BABYLON.Vector3(buttonOffsets[i][0], buttonOffsets[i][1], buttonOffsets[i][2]);
+      const bm = new BABYLON.StandardMaterial(`btnMat_${i}`, scene);
+      bm.emissiveColor = c;
+      bm.diffuseColor = c.scale(0.7);
+      b.material = bm;
+      glow.addIncludedOnlyMesh(b);
+    });
+
+    const hologramRoot = new BABYLON.TransformNode('hologramRoot', scene);
+    hologramRoot.parent = joystickRoot;
+    hologramRoot.position = new BABYLON.Vector3(0, 1.95, 1.5);
+    hologramRoot.scaling.setAll(0.05);
+
+    const holoRing = BABYLON.MeshBuilder.CreateTorus('holoRing', { diameter: 4.6, thickness: 0.08, tessellation: 96 }, scene);
+    holoRing.parent = hologramRoot;
+    holoRing.rotation.x = Math.PI / 2;
+    const holoRingMat = new BABYLON.StandardMaterial('holoRingMat', scene);
+    holoRingMat.emissiveColor = new BABYLON.Color3(0.12, 0.82, 1.0);
+    holoRingMat.diffuseColor = new BABYLON.Color3(0, 0, 0);
+    holoRing.material = holoRingMat;
+    glow.addIncludedOnlyMesh(holoRing);
+
+    const holoPlane = BABYLON.MeshBuilder.CreatePlane('holoPlane', { width: 4.4, height: 2.5 }, scene);
+    holoPlane.parent = hologramRoot;
+    holoPlane.position.y = 0.9;
+    const holoPlaneMat = new BABYLON.StandardMaterial('holoPlaneMat', scene);
+    holoPlaneMat.diffuseTexture = new BABYLON.Texture('https://playground.babylonjs.com/textures/amiga.jpg', scene);
+    holoPlaneMat.emissiveColor = new BABYLON.Color3(0.2, 0.8, 1.0);
+    holoPlaneMat.opacityTexture = holoPlaneMat.diffuseTexture;
+    holoPlaneMat.backFaceCulling = false;
+    holoPlane.material = holoPlaneMat;
+
+    const hologramGlow = BABYLON.MeshBuilder.CreateDisc('hologramGlow', { radius: 2.6, tessellation: 48 }, scene);
+    hologramGlow.parent = hologramRoot;
+    hologramGlow.position.y = 0.2;
+    hologramGlow.rotation.x = Math.PI / 2;
+    const hologramGlowMat = new BABYLON.StandardMaterial('hologramGlowMat', scene);
+    hologramGlowMat.emissiveColor = new BABYLON.Color3(0.05, 0.38, 1.0);
+    hologramGlowMat.alpha = 0.2;
+    hologramGlowMat.diffuseColor = new BABYLON.Color3(0, 0, 0);
+    hologramGlow.material = hologramGlowMat;
+    glow.addIncludedOnlyMesh(hologramGlow);
+
+    function createMascot(name, x, y, z, scale = 1) {
+      const n = new BABYLON.TransformNode(name, scene);
+      n.position = new BABYLON.Vector3(x, y, z);
+      n.scaling.setAll(scale);
+
+      const body = BABYLON.MeshBuilder.CreateSphere(`${name}_body`, {
+        diameterX: 1.1,
+        diameterY: 1.45,
+        diameterZ: 1.1,
+        segments: 28
+      }, scene);
+      body.parent = n;
+      const bodyMat = new BABYLON.StandardMaterial(`${name}_bodyMat`, scene);
+      bodyMat.diffuseColor = new BABYLON.Color3(1.0, 0.48, 0.0);
+      bodyMat.emissiveColor = new BABYLON.Color3(0.25, 0.08, 0.0);
+      body.material = bodyMat;
+
+      const shirt = BABYLON.MeshBuilder.CreateCylinder(`${name}_shirt`, { diameterTop: 1.0, diameterBottom: 1.22, height: 0.72, tessellation: 20 }, scene);
+      shirt.parent = n;
+      shirt.position.y = -0.15;
+      const shirtMat = new BABYLON.StandardMaterial(`${name}_shirtMat`, scene);
+      shirtMat.diffuseColor = new BABYLON.Color3(0.1, 0.17, 0.34);
+      shirtMat.emissiveColor = new BABYLON.Color3(0.02, 0.04, 0.1);
+      shirt.material = shirtMat;
+
+      const eye1 = BABYLON.MeshBuilder.CreateSphere(`${name}_eye1`, { diameter: 0.16, segments: 10 }, scene);
+      eye1.parent = n; eye1.position = new BABYLON.Vector3(-0.22, 0.2, -0.48);
+      const eye2 = eye1.clone(`${name}_eye2`); eye2.parent = n; eye2.position.x = 0.22;
+      const eyeMat = new BABYLON.StandardMaterial(`${name}_eyeMat`, scene);
+      eyeMat.diffuseColor = BABYLON.Color3.White();
+      eyeMat.emissiveColor = new BABYLON.Color3(0.92, 0.92, 1.0);
+      eye1.material = eyeMat; eye2.material = eyeMat;
+
+      const pupil = BABYLON.MeshBuilder.CreateSphere(`${name}_pupil`, { diameter: 0.06, segments: 8 }, scene);
+      pupil.parent = n;
+      pupil.position = new BABYLON.Vector3(0, 0.18, -0.37);
+      const pupilMat = new BABYLON.StandardMaterial(`${name}_pupilMat`, scene);
+      pupilMat.diffuseColor = new BABYLON.Color3(0.04, 0.04, 0.08);
+      pupil.material = pupilMat;
+
+      const nose = BABYLON.MeshBuilder.CreateSphere(`${name}_nose`, { diameter: 0.18, segments: 8 }, scene);
+      nose.parent = n; nose.position = new BABYLON.Vector3(0, 0.02, -0.48);
+      const noseMat = new BABYLON.StandardMaterial(`${name}_noseMat`, scene);
+      noseMat.diffuseColor = new BABYLON.Color3(1.0, 0.72, 0.67);
+      noseMat.emissiveColor = new BABYLON.Color3(0.2, 0.04, 0.04);
+      nose.material = noseMat;
+
+      const armL = BABYLON.MeshBuilder.CreateCylinder(`${name}_armL`, { height: 0.62, diameterTop: 0.08, diameterBottom: 0.08, tessellation: 10 }, scene);
+      armL.parent = n; armL.position = new BABYLON.Vector3(-0.63, -0.05, 0);
+      armL.rotation.z = Math.PI / 8;
+      const armR = armL.clone(`${name}_armR`); armR.parent = n; armR.position.x = 0.63; armR.rotation.z = -Math.PI / 8;
+
+      const gloveMat = new BABYLON.StandardMaterial(`${name}_gloveMat`, scene);
+      gloveMat.diffuseColor = BABYLON.Color3.White();
+      gloveMat.emissiveColor = new BABYLON.Color3(0.1, 0.1, 0.1);
+      const gloveL = BABYLON.MeshBuilder.CreateSphere(`${name}_gloveL`, { diameter: 0.2, segments: 10 }, scene);
+      gloveL.parent = n; gloveL.position = new BABYLON.Vector3(-0.66, -0.1, 0);
+      const gloveR = gloveL.clone(`${name}_gloveR`); gloveR.parent = n; gloveR.position.x = 0.66;
+      gloveL.material = gloveMat; gloveR.material = gloveMat;
+
+      const legL = BABYLON.MeshBuilder.CreateCylinder(`${name}_legL`, { height: 0.6, diameterTop: 0.09, diameterBottom: 0.09, tessellation: 10 }, scene);
+      legL.parent = n; legL.position = new BABYLON.Vector3(-0.18, -0.94, 0.05);
+      const legR = legL.clone(`${name}_legR`); legR.parent = n; legR.position.x = 0.18;
+
+      const shoeMat = new BABYLON.StandardMaterial(`${name}_shoeMat`, scene);
+      shoeMat.diffuseColor = new BABYLON.Color3(0.98, 0.98, 0.99);
+      shoeMat.emissiveColor = new BABYLON.Color3(0.05, 0.05, 0.05);
+      const shoeL = BABYLON.MeshBuilder.CreateBox(`${name}_shoeL`, { width: 0.24, height: 0.13, depth: 0.4 }, scene);
+      shoeL.parent = n; shoeL.position = new BABYLON.Vector3(-0.18, -1.27, 0.02);
+      const shoeR = shoeL.clone(`${name}_shoeR`); shoeR.parent = n; shoeR.position.x = 0.18;
+      shoeL.material = shoeMat; shoeR.material = shoeMat;
+
+      return n;
+    }
+
+    const mascots = [
+      createMascot('mascot1', -5.6, 2.4, -2.6, 0.72),
+      createMascot('mascot2', 4.9, 2.8, -2.0, 0.62),
+      createMascot('mascot3', -1.4, 5.3, -5.5, 0.52)
+    ];
+
+    const particleAnchor = new BABYLON.TransformNode('particleAnchor', scene);
+    particleAnchor.position = new BABYLON.Vector3(0, 2.0, 0);
+
+    const ps = new BABYLON.ParticleSystem('particles', 3500, scene);
+    ps.particleTexture = new BABYLON.Texture('https://playground.babylonjs.com/textures/flare.png', scene);
+    ps.emitter = particleAnchor;
+    ps.minEmitBox = new BABYLON.Vector3(-8, -4, -8);
+    ps.maxEmitBox = new BABYLON.Vector3(8, 6, 8);
+    ps.color1 = new BABYLON.Color4(1.0, 0.44, 0.14, 1.0);
+    ps.color2 = new BABYLON.Color4(0.24, 0.75, 1.0, 1.0);
+    ps.colorDead = new BABYLON.Color4(1.0, 0.25, 0.8, 0.0);
+    ps.minSize = 0.03;
+    ps.maxSize = 0.15;
+    ps.minLifeTime = 1.0;
+    ps.maxLifeTime = 3.5;
+    ps.emitRate = 560;
+    ps.blendMode = BABYLON.ParticleSystem.BLENDMODE_ONEONE;
+    ps.gravity = new BABYLON.Vector3(0, 0.08, 0);
+    ps.direction1 = new BABYLON.Vector3(-0.35, 0.6, -0.35);
+    ps.direction2 = new BABYLON.Vector3(0.35, 1.0, 0.35);
+    ps.minEmitPower = 0.25;
+    ps.maxEmitPower = 1.0;
+    ps.updateSpeed = 0.008;
+    ps.start();
+
+    const gameTextPlane = BABYLON.MeshBuilder.CreatePlane('gameTextPlane', { width: 2.8, height: 0.7 }, scene);
+    gameTextPlane.parent = hologramRoot;
+    gameTextPlane.position = new BABYLON.Vector3(0, 1.65, 0.03);
+    const gameTextMat = new BABYLON.StandardMaterial('gameTextMat', scene);
+    gameTextMat.diffuseColor = BABYLON.Color3.Black();
+    gameTextMat.emissiveColor = new BABYLON.Color3(0.01, 0.02, 0.05);
+    gameTextMat.alpha = 0.0;
+    gameTextPlane.material = gameTextMat;
+
+    const adt = BABYLON.GUI.AdvancedDynamicTexture.CreateForMesh(gameTextPlane, 512, 128, false);
+    const gameText = new BABYLON.GUI.TextBlock();
+    gameText.text = 'HOLOGRAPHIC GAME MODE';
+    gameText.color = 'white';
+    gameText.fontSize = 44;
+    gameText.fontWeight = '800';
+    gameText.shadowBlur = 20;
+    gameText.shadowColor = 'rgba(0,0,0,0.8)';
+    adt.addControl(gameText);
+
+    const gameSubPlane = BABYLON.MeshBuilder.CreatePlane('gameSubPlane', { width: 3.2, height: 0.55 }, scene);
+    gameSubPlane.parent = hologramRoot;
+    gameSubPlane.position = new BABYLON.Vector3(0, 0.95, 0.03);
+    const gameSubMat = new BABYLON.StandardMaterial('gameSubMat', scene);
+    gameSubMat.diffuseColor = BABYLON.Color3.Black();
+    gameSubMat.emissiveColor = new BABYLON.Color3(0.01, 0.02, 0.05);
+    gameSubMat.alpha = 0.0;
+    gameSubPlane.material = gameSubMat;
+    const adt2 = BABYLON.GUI.AdvancedDynamicTexture.CreateForMesh(gameSubPlane, 512, 96, false);
+    const gameSub = new BABYLON.GUI.TextBlock();
+    gameSub.text = 'First-person space shooter preview';
+    gameSub.color = '#bfeaff';
+    gameSub.fontSize = 26;
+    adt2.addControl(gameSub);
+
+    document.getElementById('buildNowBtn').addEventListener('click', () => {
+      window.scrollTo({ top: window.innerHeight * 2.2, behavior: 'smooth' });
+    });
+    document.getElementById('signupBtn').addEventListener('click', () => alert('Sign up flow placeholder'));
+    document.getElementById('signinBtn').addEventListener('click', () => alert('Sign in flow placeholder'));
+
+    let scrollProgress = 0;
+    let zoomHoldStarted = false;
+    let holdTimer = 0;
+    let holdDuration = 2.0;
+    let lastRevealState = 0;
+
+    function clamp01(v) { return Math.max(0, Math.min(1, v)); }
+    function smoothstep(t) { return t * t * (3 - 2 * t); }
+    function lerp(a, b, t) { return a + (b - a) * t; }
+
+    function setProgress(v) {
+      scrollProgress = clamp01(v);
+      const pct = Math.round(scrollProgress * 100);
+      document.getElementById('progressPct').textContent = pct + '%';
+      document.getElementById('progressFill').style.width = pct + '%';
+    }
+
+    function updateByScroll() {
+      const maxScroll = Math.max(1, document.body.scrollHeight - window.innerHeight);
+      const y = window.scrollY || window.pageYOffset || 0;
+      setProgress(y / maxScroll);
+    }
+
+    window.addEventListener('scroll', updateByScroll, { passive: true });
+    window.addEventListener('resize', updateByScroll);
+    updateByScroll();
+
+    scene.onBeforeRenderObservable.add(() => {
+      const dt = engine.getDeltaTime() / 1000;
+      const p = scrollProgress;
+      const t1 = smoothstep(clamp01(p / 0.32));
+      const t2 = smoothstep(clamp01((p - 0.32) / 0.20));
+      const t3 = smoothstep(clamp01((p - 0.52) / 0.20));
+      const t4 = smoothstep(clamp01((p - 0.72) / 0.28));
+
+      root.position.y = 2.0 + Math.sin(performance.now() * 0.001) * 0.06;
+      halo.rotation.z += dt * 0.16;
+      halo.scaling.setAll(1 + Math.sin(performance.now() * 0.002) * 0.015);
+      ps.minEmitPower = 0.2 + 0.1 * Math.sin(performance.now() * 0.0018);
+      mascots.forEach((m, i) => {
+        m.rotation.y += dt * (0.22 + i * 0.06);
+        m.position.y += Math.sin(performance.now() * 0.0015 + i) * 0.001;
+      });
+
+      const leanStartX = 0.22;
+      const leanEndX = 0.0;
+      const leanStartZ = -0.18;
+      const leanEndZ = 0.0;
+      joystickRoot.rotation.x = lerp(leanStartX, leanEndX, t4);
+      joystickRoot.rotation.z = lerp(leanStartZ, leanEndZ, t4);
+      joystickRoot.rotation.y = lerp(-0.08, 0.0, t4);
+
+      const camAlpha = lerp(-Math.PI / 2 + 0.7, -Math.PI / 2 + 0.05, t1 * 0.9 + t2 * 0.4);
+      const camBeta = lerp(Math.PI / 2.15, Math.PI / 2.8, t1) - t2 * 0.10;
+      const camRadiusApproach = lerp(22, 10.8, t1);
+      const camRadiusDive = lerp(10.8, 4.8, t2);
+      const camRadiusOut = lerp(4.8, 11.5, t4);
+      const finalRadius = p < 0.52 ? camRadiusDive : lerp(camRadiusDive, camRadiusOut, t4);
+
+      camera.alpha = lerp(camera.alpha, camAlpha, 0.06);
+      camera.beta = lerp(camera.beta, camBeta, 0.06);
+      camera.radius = lerp(camera.radius, p < 0.52 ? (p < 0.32 ? camRadiusApproach : camRadiusDive) : finalRadius, 0.06);
+      camera.target = BABYLON.Vector3.Lerp(camera.target, new BABYLON.Vector3(0, 1.9, p < 0.52 ? 0.55 : 0.72), 0.05);
+
+      if (p >= 0.52 && p <= 0.72) {
+        if (!zoomHoldStarted) {
+          zoomHoldStarted = true;
+          holdTimer = 0;
+        }
+        holdTimer += dt;
+      } else {
+        zoomHoldStarted = false;
+      }
+
+      const holoGrow = p < 0.52 ? 0.03 : p < 0.72 ? lerp(0.05, 1.0, t3) : 1.0;
+      hologramRoot.scaling.setAll(holoGrow);
+      hologramRoot.rotation.y += dt * 0.35;
+
+      let revealBoost = 0;
+      if (zoomHoldStarted && holdTimer >= holdDuration) {
+        revealBoost = smoothstep(clamp01((holdTimer - holdDuration) / 0.8));
+      }
+
+      if (p < 0.72) {
+        gameTextPlane.visibility = 0.0;
+        gameSubPlane.visibility = 0.0;
+      } else {
+        gameTextPlane.visibility = 1.0;
+        gameSubPlane.visibility = 1.0;
+        gameText.alpha = lerp(0.0, 1.0, t4);
+        gameSub.alpha = lerp(0.0, 1.0, t4);
+      }
+
+      const shaderPulse = 0.55 + Math.sin(performance.now() * 0.004) * 0.12;
+      hologramGlow.scaling.x = 1 + shaderPulse * 0.07;
+      hologramGlow.scaling.y = 1 + shaderPulse * 0.07;
+      holoRing.scaling.setAll(1 + shaderPulse * 0.03);
+      holoPlane.scaling.y = 1 + shaderPulse * 0.03;
+
+      glow.intensity = lerp(1.2, 2.1, p);
+      pipeline.bloomWeight = lerp(0.55, 0.88, p);
+      pipeline.chromaticAberration.aberrationAmount = lerp(10, 18, p);
+
+      if (revealBoost > 0) {
+        camera.radius = lerp(camera.radius, 6.8, 0.06 * (1 - revealBoost)) + revealBoost * 0.25;
+        root.position.y = lerp(root.position.y, 2.08, 0.04);
+      }
+
+      if (Math.abs(scrollProgress - lastRevealState) < 0.0001) {
+        camera.alpha += Math.sin(performance.now() * 0.00012) * 0.0004;
+      }
+      lastRevealState = scrollProgress;
+    });
+
+    camera.target = new BABYLON.Vector3(0, 1.9, 0.5);
+    engine.runRenderLoop(() => scene.render());
+    window.addEventListener('resize', () => engine.resize());
+  </script>
+</body>
+</html>
