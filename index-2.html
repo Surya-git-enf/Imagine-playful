@@ -1,0 +1,973 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>PLAYFUL — AI World Builder</title>
+<!-- Babylon loaded dynamically at bottom to guarantee order -->
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600;700&family=Orbitron:wght@400;700;900&family=Space+Mono:ital@0;1&display=swap');
+
+*{margin:0;padding:0;box-sizing:border-box;}
+
+:root{
+  --purple:#a855f7;
+  --blue:#38bdf8;
+  --orange:#fb923c;
+  --pink:#f472b6;
+  --cyan:#06b6d4;
+}
+
+body{
+  background:#000;
+  overflow:hidden;
+  font-family:'Rajdhani',sans-serif;
+}
+
+#renderCanvas{
+  width:100vw;height:100vh;
+  display:block;touch-action:none;
+  position:fixed;inset:0;
+}
+
+/* ── LOADING ── */
+#loading{
+  position:fixed;inset:0;
+  background:radial-gradient(ellipse at 50% 50%, #0d001a 0%, #000005 70%, #000 100%);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  z-index:9999;
+  transition:opacity 1.2s ease;
+}
+#loading.fade{opacity:0;pointer-events:none;}
+
+.load-logo{
+  font-family:'Orbitron',sans-serif;
+  font-size:clamp(2.5rem,8vw,5rem);
+  font-weight:900;
+  letter-spacing:0.25em;
+  background:linear-gradient(135deg,#fff 0%,#a855f7 40%,#38bdf8 75%,#fb923c 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  background-clip:text;
+  margin-bottom:2rem;
+  animation:logoGlow 2s ease-in-out infinite alternate;
+}
+@keyframes logoGlow{
+  from{filter:drop-shadow(0 0 20px rgba(168,85,247,0.4));}
+  to{filter:drop-shadow(0 0 40px rgba(56,189,248,0.6));}
+}
+.load-tag{
+  color:rgba(255,255,255,0.3);
+  font-family:'Space Mono',monospace;
+  font-size:0.7rem;letter-spacing:0.35em;
+  margin-bottom:2.5rem;
+}
+.load-bar-wrap{
+  width:240px;height:2px;
+  background:rgba(255,255,255,0.08);
+  border-radius:2px;overflow:hidden;
+  margin-bottom:1.5rem;
+}
+.load-bar{
+  height:100%;width:0;
+  background:linear-gradient(90deg,#a855f7,#38bdf8,#fb923c);
+  border-radius:2px;
+  animation:loadBar 2.4s cubic-bezier(.4,0,.2,1) forwards;
+}
+@keyframes loadBar{
+  0%{width:0%;}20%{width:25%;}60%{width:70%;}100%{width:100%;}
+}
+.load-status{
+  color:rgba(168,85,247,0.6);
+  font-family:'Space Mono',monospace;
+  font-size:0.65rem;letter-spacing:0.2em;
+  animation:blink 1s step-end infinite;
+}
+@keyframes blink{50%{opacity:0;}}
+
+/* ── NAV ── */
+#nav{
+  position:fixed;top:0;left:0;right:0;
+  padding:clamp(12px,2.5vw,22px) clamp(16px,4vw,48px);
+  display:flex;justify-content:space-between;align-items:center;
+  z-index:200;
+  opacity:0;
+  transform:translateY(-20px);
+  transition:opacity 1s ease,transform 1s ease;
+  pointer-events:none;
+}
+#nav.show{opacity:1;transform:translateY(0);pointer-events:all;}
+
+.nav-logo{
+  font-family:'Orbitron',sans-serif;
+  font-size:clamp(1.1rem,2.5vw,1.6rem);
+  font-weight:900;letter-spacing:0.2em;
+  background:linear-gradient(90deg,#fff,#a855f7,#38bdf8);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  background-clip:text;
+}
+
+.nav-btns{display:flex;gap:10px;}
+.nav-btn{
+  padding:7px 18px;
+  border-radius:99px;
+  border:1px solid rgba(255,255,255,0.15);
+  background:rgba(255,255,255,0.04);
+  backdrop-filter:blur(12px);
+  color:rgba(255,255,255,0.85);
+  font-family:'Rajdhani',sans-serif;
+  font-size:0.9rem;font-weight:600;
+  cursor:pointer;transition:all .3s;
+  letter-spacing:0.05em;
+}
+.nav-btn:hover{background:rgba(168,85,247,0.18);border-color:rgba(168,85,247,0.5);color:#fff;}
+.nav-btn.accent{
+  background:rgba(168,85,247,0.18);
+  border-color:rgba(168,85,247,0.5);
+  color:#c084fc;
+}
+.nav-btn.accent:hover{background:rgba(168,85,247,0.3);}
+
+/* ── HERO UI ── */
+#hero-ui{
+  position:fixed;
+  bottom:clamp(60px,12vh,130px);
+  left:0;right:0;
+  display:flex;flex-direction:column;align-items:center;
+  gap:clamp(14px,2.5vh,26px);
+  z-index:200;
+  opacity:0;
+  transform:translateY(50px);
+  transition:opacity 1.4s cubic-bezier(.16,1,.3,1),transform 1.4s cubic-bezier(.16,1,.3,1);
+  pointer-events:none;
+}
+#hero-ui.show{opacity:1;transform:translateY(0);pointer-events:all;}
+
+.hero-h{
+  font-family:'Orbitron',sans-serif;
+  font-size:clamp(1.5rem,4.5vw,3.6rem);
+  font-weight:900;
+  text-align:center;
+  line-height:1.15;
+  max-width:min(820px,90vw);
+  padding:0 16px;
+  background:linear-gradient(125deg,#fff 0%,#c084fc 35%,#38bdf8 65%,#fb923c 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  background-clip:text;
+  filter:drop-shadow(0 0 30px rgba(168,85,247,0.3));
+}
+.hero-sub{
+  font-family:'Space Mono',monospace;
+  font-size:clamp(0.65rem,1.5vw,0.85rem);
+  color:rgba(255,255,255,0.45);
+  letter-spacing:0.3em;
+  text-transform:uppercase;
+}
+
+.cap-btns{
+  display:flex;gap:clamp(8px,2vw,14px);
+  flex-wrap:wrap;justify-content:center;
+  padding:0 16px;
+}
+.cap-btn{
+  padding:clamp(9px,1.5vw,13px) clamp(20px,3vw,34px);
+  border-radius:99px;border:none;
+  cursor:pointer;
+  font-family:'Orbitron',sans-serif;
+  font-size:clamp(0.7rem,1.5vw,0.85rem);
+  font-weight:700;letter-spacing:0.15em;
+  text-transform:uppercase;
+  transition:all .35s cubic-bezier(.16,1,.3,1);
+  position:relative;overflow:hidden;
+}
+.cap-btn::before{
+  content:'';position:absolute;inset:0;
+  background:rgba(255,255,255,0.15);
+  opacity:0;transition:opacity .3s;
+}
+.cap-btn:hover::before{opacity:1;}
+.cap-btn:hover{transform:translateY(-3px) scale(1.06);}
+
+.cap-btn.gen{
+  background:linear-gradient(135deg,#f97316,#ec4899);
+  color:#fff;
+  box-shadow:0 0 25px rgba(249,115,22,0.4),0 4px 15px rgba(0,0,0,0.4);
+}
+.cap-btn.exp{
+  background:linear-gradient(135deg,#8b5cf6,#3b82f6);
+  color:#fff;
+  box-shadow:0 0 25px rgba(139,92,246,0.4),0 4px 15px rgba(0,0,0,0.4);
+}
+.cap-btn.ply{
+  background:linear-gradient(135deg,#06b6d4,#a855f7);
+  color:#fff;
+  box-shadow:0 0 25px rgba(6,182,212,0.4),0 4px 15px rgba(0,0,0,0.4);
+}
+
+.cta-btn{
+  padding:clamp(14px,2vw,19px) clamp(40px,6vw,72px);
+  border-radius:99px;border:none;
+  cursor:pointer;
+  font-family:'Orbitron',sans-serif;
+  font-size:clamp(0.9rem,2vw,1.2rem);
+  font-weight:900;letter-spacing:0.2em;
+  text-transform:uppercase;
+  color:#fff;
+  background:linear-gradient(135deg,#a855f7,#38bdf8,#fb923c);
+  background-size:200% 200%;
+  animation:gradShift 3s ease infinite;
+  box-shadow:0 0 50px rgba(168,85,247,0.55),0 0 100px rgba(56,189,248,0.25),0 8px 25px rgba(0,0,0,0.5);
+  transition:transform .3s,box-shadow .3s;
+}
+.cta-btn:hover{
+  transform:scale(1.06) translateY(-3px);
+  box-shadow:0 0 80px rgba(168,85,247,0.75),0 0 150px rgba(56,189,248,0.4),0 12px 35px rgba(0,0,0,0.6);
+}
+@keyframes gradShift{
+  0%{background-position:0% 50%;}
+  50%{background-position:100% 50%;}
+  100%{background-position:0% 50%;}
+}
+
+/* ── PHASE LABEL ── */
+#phase-label{
+  position:fixed;bottom:16px;left:50%;transform:translateX(-50%);
+  font-family:'Space Mono',monospace;
+  font-size:0.6rem;color:rgba(168,85,247,0.4);
+  letter-spacing:0.25em;z-index:100;
+  pointer-events:none;
+  transition:opacity .5s;
+}
+
+@media(max-width:640px){
+  .nav-btn{padding:6px 13px;font-size:0.78rem;}
+}
+</style>
+</head>
+<body>
+
+<!-- Loading -->
+<div id="loading">
+  <div class="load-logo">PLAYFUL</div>
+  <div class="load-tag">AI WORLD BUILDER ENGINE v2.0</div>
+  <div class="load-bar-wrap"><div class="load-bar"></div></div>
+  <div class="load-status">INITIALIZING SCENE_</div>
+</div>
+
+<!-- Canvas -->
+<canvas id="renderCanvas"></canvas>
+
+<!-- Nav -->
+<div id="nav">
+  <div class="nav-logo">PLAYFUL</div>
+  <div class="nav-btns">
+    <button class="nav-btn">Sign In</button>
+    <button class="nav-btn accent">Sign Up</button>
+  </div>
+</div>
+
+<!-- Hero UI (shown after animation) -->
+<div id="hero-ui">
+  <h1 class="hero-h">AI-powered worlds<br>from your words.</h1>
+  <p class="hero-sub">Create &nbsp;·&nbsp; Dive In &nbsp;·&nbsp; Dominate</p>
+  <div class="cap-btns">
+    <button class="cap-btn gen">Generate</button>
+    <button class="cap-btn exp">Explore</button>
+    <button class="cap-btn ply">Play</button>
+  </div>
+  <button class="cta-btn">Build Now</button>
+</div>
+
+<div id="phase-label">BOOTING ENGINE_</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════
+   PLAYFUL — Cinematic 3D Landing Page
+   Engine: Babylon.js
+═══════════════════════════════════════════════════════ */
+
+let canvas, engine, isMobile;
+
+// ── Easing helpers ──
+const easeInOut = t => t<.5 ? 2*t*t : -1+(4-2*t)*t;
+const easeOut   = t => t*(2-t);
+const easeIn    = t => t*t*t;
+
+// ── Helper: rounded rect on canvas 2D ──
+function rr(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x+r, y);
+  ctx.lineTo(x+w-r, y);
+  ctx.quadraticCurveTo(x+w, y, x+w, y+r);
+  ctx.lineTo(x+w, y+h-r);
+  ctx.quadraticCurveTo(x+w, y+h, x+w-r, y+h);
+  ctx.lineTo(x+r, y+h);
+  ctx.quadraticCurveTo(x, y+h, x, y+h-r);
+  ctx.lineTo(x, y+r);
+  ctx.quadraticCurveTo(x, y, x+r, y);
+  ctx.closePath();
+}
+
+/* ═══════════════════════════════════════════════════════
+   CREATE SCENE
+═══════════════════════════════════════════════════════ */
+function createScene() {
+  const scene = new BABYLON.Scene(engine);
+  scene.clearColor = new BABYLON.Color4(0.005, 0, 0.025, 1);
+
+  // Fog
+  scene.fogMode    = BABYLON.Scene.FOGMODE_EXP2;
+  scene.fogColor   = new BABYLON.Color3(0.01, 0, 0.04);
+  scene.fogDensity = 0.025;
+
+  /* ── CAMERA ── */
+  const cam = new BABYLON.ArcRotateCamera('cam', 0.05, 1.22, isMobile?20:15, new BABYLON.Vector3(0,0.5,0), scene);
+  cam.inputs.clear();
+
+  // Camera targets (lerp toward these each frame)
+  let camT = { alpha:0.05, beta:1.22, radius:isMobile?20:15, targetY:0.5 };
+
+  /* ── LIGHTS ── */
+  const hemi = new BABYLON.HemisphericLight('hemi', new BABYLON.Vector3(0,1,0), scene);
+  hemi.intensity = 0.08;
+  hemi.diffuse   = new BABYLON.Color3(0.4,0.2,0.8);
+
+  const pL = new BABYLON.PointLight('pL', new BABYLON.Vector3(-3,4,-2), scene);
+  pL.diffuse    = new BABYLON.Color3(0.6,0.1,1);
+  pL.intensity  = 4;
+
+  const bL = new BABYLON.PointLight('bL', new BABYLON.Vector3(3,3,-2), scene);
+  bL.diffuse   = new BABYLON.Color3(0.1,0.55,1);
+  bL.intensity = 3;
+
+  const oL = new BABYLON.PointLight('oL', new BABYLON.Vector3(0,-2,2), scene);
+  oL.diffuse   = new BABYLON.Color3(1,0.4,0.1);
+  oL.intensity = 2;
+
+  /* ── GLOW LAYER ── */
+  const glow = new BABYLON.GlowLayer('glow', scene);
+  glow.intensity = 0.9;
+
+  /* ──────────────────────────────────────────────────
+     PARTICLES
+  ────────────────────────────────────────────────── */
+  const pCount = isMobile ? 250 : 700;
+  const ps = new BABYLON.ParticleSystem('ps', pCount, scene);
+  ps.particleTexture = new BABYLON.Texture('https://assets.babylonjs.com/textures/flare.png', scene);
+  ps.emitter = new BABYLON.Vector3(0,0,0);
+  ps.minEmitBox = new BABYLON.Vector3(-18,-8,-8);
+  ps.maxEmitBox = new BABYLON.Vector3( 18, 8, 4);
+  ps.color1 = new BABYLON.Color4(0.5,0.2,1,.9);
+  ps.color2 = new BABYLON.Color4(0.2,0.6,1,.7);
+  ps.colorDead = new BABYLON.Color4(0,0,.3,0);
+  ps.minSize = 0.02; ps.maxSize = 0.09;
+  ps.minLifeTime = 6; ps.maxLifeTime = 12;
+  ps.emitRate = isMobile?25:70;
+  ps.gravity  = new BABYLON.Vector3(0,0.005,0);
+  ps.direction1 = new BABYLON.Vector3(-0.05,0.1,0);
+  ps.direction2 = new BABYLON.Vector3( 0.05,0.15,.05);
+  ps.minEmitPower = 0.05; ps.maxEmitPower = 0.2;
+  ps.start();
+
+  /* ──────────────────────────────────────────────────
+     MATERIALS
+  ────────────────────────────────────────────────── */
+  const bodyMat = new BABYLON.PBRMaterial('body', scene);
+  bodyMat.metallic       = 0.92;
+  bodyMat.roughness      = 0.12;
+  bodyMat.albedoColor    = new BABYLON.Color3(0.72,0.72,0.92);
+  bodyMat.emissiveColor  = new BABYLON.Color3(0.04,0.02,0.12);
+  bodyMat.reflectivityColor = new BABYLON.Color3(0.85,0.85,1);
+
+  const neonPurp = new BABYLON.PBRMaterial('nPurp', scene);
+  neonPurp.metallic = 1; neonPurp.roughness = 0.04;
+  neonPurp.albedoColor   = new BABYLON.Color3(0.45,0.1,1);
+  neonPurp.emissiveColor = new BABYLON.Color3(0.9,0.15,1);
+
+  const neonBlue = new BABYLON.PBRMaterial('nBlue', scene);
+  neonBlue.metallic = 1; neonBlue.roughness = 0.04;
+  neonBlue.albedoColor   = new BABYLON.Color3(0.1,0.6,1);
+  neonBlue.emissiveColor = new BABYLON.Color3(0.1,0.7,1);
+
+  const neonOrange = new BABYLON.PBRMaterial('nOrng', scene);
+  neonOrange.metallic = 0.9; neonOrange.roughness = 0.08;
+  neonOrange.albedoColor   = new BABYLON.Color3(1,0.42,0.1);
+  neonOrange.emissiveColor = new BABYLON.Color3(0.8,0.3,0.02);
+
+  const neonPink = new BABYLON.PBRMaterial('nPink', scene);
+  neonPink.metallic = 1; neonPink.roughness = 0.04;
+  neonPink.albedoColor   = new BABYLON.Color3(1,0.28,0.7);
+  neonPink.emissiveColor = new BABYLON.Color3(1,0.1,0.55);
+
+  const darkMat = new BABYLON.StandardMaterial('dark', scene);
+  darkMat.diffuseColor  = new BABYLON.Color3(0,0,0);
+  darkMat.emissiveColor = new BABYLON.Color3(0.02,0.02,0.1);
+
+  /* ──────────────────────────────────────────────────
+     JOYSTICK  (all children of joystickRoot)
+  ────────────────────────────────────────────────── */
+  const jRoot = new BABYLON.TransformNode('jRoot', scene);
+  jRoot.rotation.y = -0.35;
+  jRoot.rotation.z =  0.08;
+
+  const mb  = s => BABYLON.MeshBuilder;
+  const jkm = (m,p) => { m.parent=jRoot; return m; };
+
+  // ── Left handle ──
+  const lH = mb.CreateCylinder('lH',{height:3,diameter:0.75,tessellation:32},scene);
+  lH.parent=jRoot; lH.position.set(-1.35,-1.3,0); lH.rotation.z=0.18; lH.material=bodyMat;
+
+  const lRing = mb.CreateTorus('lR',{diameter:.9,thickness:.055,tessellation:36},scene);
+  lRing.parent=jRoot; lRing.position.set(-1.35,-2,0); lRing.material=neonPurp;
+
+  const lRing2 = mb.CreateTorus('lR2',{diameter:.9,thickness:.04,tessellation:36},scene);
+  lRing2.parent=jRoot; lRing2.position.set(-1.35,-0.5,0); lRing2.material=neonBlue;
+
+  // ── Right handle ──
+  const rH = mb.CreateCylinder('rH',{height:3,diameter:0.75,tessellation:32},scene);
+  rH.parent=jRoot; rH.position.set(1.35,-1.3,0); rH.rotation.z=-0.18; rH.material=bodyMat;
+
+  const rRing = mb.CreateTorus('rR',{diameter:.9,thickness:.055,tessellation:36},scene);
+  rRing.parent=jRoot; rRing.position.set(1.35,-2,0); rRing.material=neonPurp;
+
+  const rRing2 = mb.CreateTorus('rR2',{diameter:.9,thickness:.04,tessellation:36},scene);
+  rRing2.parent=jRoot; rRing2.position.set(1.35,-0.5,0); rRing2.material=neonOrange;
+
+  // ── Bridge (top connecting body) ──
+  const bridge = mb.CreateBox('bridge',{width:3.1,height:0.55,depth:0.65},scene);
+  bridge.parent=jRoot; bridge.position.set(0,0.45,0); bridge.material=bodyMat;
+
+  // ── Slot housing ──
+  const slotH = mb.CreateBox('slotH',{width:2.45,height:0.28,depth:0.6},scene);
+  slotH.parent=jRoot; slotH.position.set(0,0.08,0); slotH.material=bodyMat;
+
+  // ── Slot dark gap ──
+  const slotGap = mb.CreateBox('slotGap',{width:1.65,height:0.09,depth:0.58},scene);
+  slotGap.parent=jRoot; slotGap.position.set(0,0.09,0); slotGap.material=darkMat;
+
+  // ── Slot neon edges ──
+  const slotEL = mb.CreateBox('slEL',{width:.06,height:.12,depth:.58},scene);
+  slotEL.parent=jRoot; slotEL.position.set(-0.84,0.09,0); slotEL.material=neonBlue;
+  const slotER = mb.CreateBox('slER',{width:.06,height:.12,depth:.58},scene);
+  slotER.parent=jRoot; slotER.position.set( 0.84,0.09,0); slotER.material=neonBlue;
+
+  // ── Lower body ──
+  const lBody = mb.CreateBox('lBody',{width:2.65,height:0.45,depth:0.68},scene);
+  lBody.parent=jRoot; lBody.position.set(0,-0.2,0); lBody.material=bodyMat;
+
+  const botStrip = mb.CreateBox('botS',{width:2.5,height:.07,depth:.69},scene);
+  botStrip.parent=jRoot; botStrip.position.set(0,-0.45,0); botStrip.material=neonOrange;
+
+  const botStrip2 = mb.CreateBox('botS2',{width:2.0,height:.04,depth:.7},scene);
+  botStrip2.parent=jRoot; botStrip2.position.set(0,-0.52,0); botStrip2.material=neonPink;
+
+  // ── Joystick thumb-stick ──
+  const stBase = mb.CreateCylinder('stBase',{height:.28,diameterTop:.52,diameterBottom:.62,tessellation:32},scene);
+  stBase.parent=jRoot; stBase.position.set(0,.78,0); stBase.material=bodyMat;
+
+  const stShaft = mb.CreateCylinder('stShaft',{height:.9,diameter:.22,tessellation:20},scene);
+  stShaft.parent=jRoot; stShaft.position.set(0,1.38,0); stShaft.material=neonPurp;
+
+  const stBall = mb.CreateSphere('stBall',{diameter:.38,segments:18},scene);
+  stBall.parent=jRoot; stBall.position.set(0,1.88,0); stBall.material=neonBlue;
+
+  // ── Decorative buttons on bridge ──
+  const bA = mb.CreateCylinder('bA',{height:.06,diameter:.22,tessellation:24},scene);
+  bA.parent=jRoot; bA.position.set(.62,.74,-.18); bA.rotation.x=Math.PI/2; bA.material=neonOrange;
+
+  const bB = mb.CreateCylinder('bB',{height:.06,diameter:.22,tessellation:24},scene);
+  bB.parent=jRoot; bB.position.set(-.62,.74,-.18); bB.rotation.x=Math.PI/2; bB.material=neonBlue;
+
+  const bC = mb.CreateCylinder('bC',{height:.06,diameter:.18,tessellation:24},scene);
+  bC.parent=jRoot; bC.position.set(.62,.74,.12); bC.rotation.x=Math.PI/2; bC.material=neonPink;
+
+  const bD = mb.CreateCylinder('bD',{height:.06,diameter:.18,tessellation:24},scene);
+  bD.parent=jRoot; bD.position.set(-.62,.74,.12); bD.rotation.x=Math.PI/2; bD.material=neonPurp;
+
+  /* ──────────────────────────────────────────────────
+     PAPER CARD  (world space, not parented)
+  ────────────────────────────────────────────────── */
+  const PW=512, PH=300;
+  const paperTex = new BABYLON.DynamicTexture('paperTex',{width:PW,height:PH},scene,false);
+  const pCtx = paperTex.getContext();
+
+  const paper = mb.CreatePlane('paper',{width:2,height:1.18,sideOrientation:BABYLON.Mesh.DOUBLESIDE},scene);
+  paper.position.set(0,3.7,-0.12);
+  const paperMat = new BABYLON.StandardMaterial('paperM',scene);
+  paperMat.diffuseTexture  = paperTex;
+  paperMat.emissiveTexture = paperTex;
+  paperMat.emissiveColor   = new BABYLON.Color3(0.55,0.45,1);
+  paperMat.alpha = 0.9;
+  paperMat.backFaceCulling = false;
+  paper.material = paperMat;
+
+  function drawPaperBg() {
+    pCtx.clearRect(0,0,PW,PH);
+    // Glass BG
+    const g = pCtx.createLinearGradient(0,0,PW,PH);
+    g.addColorStop(0,'rgba(35,10,80,0.95)');
+    g.addColorStop(1,'rgba(8,20,55,0.95)');
+    pCtx.fillStyle=g;
+    rr(pCtx,4,4,PW-8,PH-8,18); pCtx.fill();
+    // Border glow
+    pCtx.strokeStyle='rgba(138,80,255,0.85)';
+    pCtx.lineWidth=2.5;
+    rr(pCtx,4,4,PW-8,PH-8,18); pCtx.stroke();
+    // Inner divider
+    pCtx.fillStyle='rgba(120,70,255,0.35)';
+    pCtx.fillRect(18,48,PW-36,1);
+    // Header
+    pCtx.fillStyle='rgba(160,100,255,0.85)';
+    pCtx.font='bold 16px monospace';
+    pCtx.fillText('▸ PLAYFUL PROMPT ENGINE',18,32);
+    paperTex.update();
+  }
+  drawPaperBg();
+
+  /* ── Typing animation ── */
+  const FULL_TEXT = 'Create a space ship laser shooter with a first-person view, where enemy space ships come toward me and I shoot them with lasers.';
+  let typed='', typeIdx=0;
+  let typingDone=false;
+  let onTypingComplete=null;
+
+  function advanceTyping() {
+    if(typeIdx>=FULL_TEXT.length){ typingDone=true; if(onTypingComplete)onTypingComplete(); return; }
+    typed += FULL_TEXT[typeIdx++];
+
+    drawPaperBg();
+    pCtx.fillStyle='rgba(210,195,255,0.96)';
+    pCtx.font='14.5px "Space Mono",monospace';
+
+    // Word-wrap
+    const words=typed.split(' ');
+    let line='', y=76, lh=24, mw=PW-36;
+    for(let i=0;i<words.length;i++){
+      const t=line+words[i]+' ';
+      if(pCtx.measureText(t).width>mw && i>0){ pCtx.fillText(line,18,y); line=words[i]+' '; y+=lh; }
+      else line=t;
+    }
+    pCtx.fillText(line,18,y);
+    // Cursor
+    pCtx.fillStyle='rgba(140,80,255,0.95)';
+    pCtx.fillRect(18+pCtx.measureText(line).width, y-17, 2, 19);
+
+    // Blink scan-line effect on paper
+    if(typeIdx%5===0){
+      pCtx.fillStyle='rgba(160,100,255,0.04)';
+      for(let yl=0;yl<PH;yl+=3) pCtx.fillRect(0,yl,PW,1.5);
+    }
+    paperTex.update();
+
+    const delay = 38 + (Math.random()>0.85 ? 80 : 0); // natural typing feel
+    setTimeout(advanceTyping, delay);
+  }
+
+  /* ──────────────────────────────────────────────────
+     HOLOGRAM
+  ────────────────────────────────────────────────── */
+  const holoRoot = new BABYLON.TransformNode('holoRoot',scene);
+  holoRoot.position.set(0,5.5,0);
+  holoRoot.scaling.setAll(0);
+
+  const HW=512,HH=360;
+  const holoTex = new BABYLON.DynamicTexture('holoTex',{width:HW,height:HH},scene,false);
+  const hCtx = holoTex.getContext();
+
+  const holoScreen = mb.CreatePlane('holoScreen',{width:4.2,height:3,sideOrientation:BABYLON.Mesh.DOUBLESIDE},scene);
+  holoScreen.parent=holoRoot;
+  const holoMat = new BABYLON.StandardMaterial('holoM',scene);
+  holoMat.diffuseTexture  = holoTex;
+  holoMat.emissiveTexture = holoTex;
+  holoMat.emissiveColor   = new BABYLON.Color3(0.4,0.85,1);
+  holoMat.alpha = 0.88;
+  holoMat.backFaceCulling = false;
+  holoScreen.material = holoMat;
+
+  // Holo frame edges
+  const edgeDefs=[
+    {w:4.6,h:.05,x:0,y: 1.55},{w:4.6,h:.05,x:0,y:-1.55},
+    {w:.05,h:3.1,x:-2.15,y:0},{w:.05,h:3.1,x: 2.15,y:0}
+  ];
+  const edgeCols=[
+    new BABYLON.Color3(0,1,1), new BABYLON.Color3(0.9,0.2,1),
+    new BABYLON.Color3(1,0.45,0.1), new BABYLON.Color3(0.2,0.8,1)
+  ];
+  edgeDefs.forEach((e,i)=>{
+    const em=mb.CreateBox('e'+i,{width:e.w,height:e.h,depth:.04},scene);
+    em.parent=holoRoot; em.position.set(e.x,e.y,0);
+    const em2=new BABYLON.StandardMaterial('em'+i,scene);
+    em2.emissiveColor=edgeCols[i]; em.material=em2;
+  });
+
+  // Corner accents
+  const corners=[[-2.15,1.55],[2.15,1.55],[-2.15,-1.55],[2.15,-1.55]];
+  corners.forEach((c,i)=>{
+    const cm=mb.CreateBox('cor'+i,{width:.18,height:.18,depth:.06},scene);
+    cm.parent=holoRoot; cm.position.set(c[0],c[1],0);
+    const cm2=new BABYLON.StandardMaterial('cm'+i,scene);
+    cm2.emissiveColor=new BABYLON.Color3(1,1,0.5); cm.material=cm2;
+  });
+
+  /* ── Space game state ── */
+  let game={
+    stars:[],enemies:[],lasers:[],explosions:[],
+    frame:0,running:false
+  };
+  for(let i=0;i<160;i++){
+    game.stars.push({x:Math.random()*HW,y:Math.random()*HH,z:Math.random()*HW,spd:0.6+Math.random()*2.5});
+  }
+  function spawnEnemy(){
+    game.enemies.push({
+      x:60+Math.random()*392, y:40+Math.random()*200,
+      z:150+Math.random()*100, spd:0.8+Math.random()*1.6,
+      hue:190+Math.random()*80
+    });
+  }
+  for(let i=0;i<6;i++) spawnEnemy();
+
+  function spawnLaser(){
+    const tx=100+Math.random()*312, ty=30+Math.random()*200;
+    game.lasers.push({x:HW/2,y:HH-40,tx,ty,prog:0,spd:.04+Math.random()*.02});
+  }
+
+  function drawGame(){
+    if(!game.running) return;
+    game.frame++;
+    const f=game.frame;
+
+    // BG
+    hCtx.fillStyle='#000510';
+    hCtx.fillRect(0,0,HW,HH);
+
+    // Perspective grid
+    hCtx.save();
+    hCtx.strokeStyle='rgba(0,255,200,0.06)';
+    hCtx.lineWidth=1;
+    for(let x=0;x<HW;x+=32){
+      hCtx.beginPath(); hCtx.moveTo(x,0); hCtx.lineTo(HW/2+(x-HW/2)*0.3,HH);
+      hCtx.stroke();
+    }
+    hCtx.restore();
+
+    // Stars
+    game.stars.forEach(s=>{
+      s.z-=s.spd; if(s.z<=1) s.z=HW;
+      const px=(s.x-HW/2)*(80/s.z)+HW/2;
+      const py=(s.y-HH/2)*(80/s.z)+HH/2;
+      const sz=(1-s.z/HW)*3.5;
+      const br=1-s.z/HW;
+      hCtx.fillStyle=`rgba(255,255,255,${br})`;
+      hCtx.beginPath(); hCtx.arc(px,py,sz,0,Math.PI*2); hCtx.fill();
+    });
+
+    // Enemy spawn
+    if(f%80===0) spawnEnemy();
+    if(f%28===0) spawnLaser();
+
+    // Enemies
+    game.enemies=game.enemies.filter(e=>{
+      e.z-=e.spd; if(e.z<-20) return false;
+      const px=(e.x-HW/2)*(200/(e.z+80))+HW/2;
+      const py=(e.y-HH/2)*(200/(e.z+80))+HH/2;
+      const s=Math.max(2,(1-e.z/250)*28+6);
+
+      hCtx.save(); hCtx.translate(px,py);
+      hCtx.shadowColor=`hsl(${e.hue},90%,60%)`; hCtx.shadowBlur=12;
+
+      // Wing silhouette
+      hCtx.fillStyle=`hsl(${e.hue},80%,55%)`;
+      hCtx.beginPath();
+      hCtx.moveTo(0, s*.8);
+      hCtx.lineTo(-s*.85,-s*.4);
+      hCtx.lineTo(-s*.3,-s*.1);
+      hCtx.lineTo(0,-s*.55);
+      hCtx.lineTo(s*.3,-s*.1);
+      hCtx.lineTo(s*.85,-s*.4);
+      hCtx.closePath(); hCtx.fill();
+
+      hCtx.fillStyle='rgba(255,120,40,0.9)';
+      hCtx.beginPath(); hCtx.arc(0,-s*.12,s*.15,0,Math.PI*2); hCtx.fill();
+
+      hCtx.restore(); return true;
+    });
+
+    // Lasers
+    game.lasers=game.lasers.filter(l=>{
+      l.prog+=l.spd; if(l.prog>=1){
+        game.explosions.push({x:l.tx,y:l.ty,r:0,maxR:35,alpha:1});
+        return false;
+      }
+      const cx=l.x+(l.tx-l.x)*l.prog, cy=l.y+(l.ty-l.y)*l.prog;
+      hCtx.save();
+      hCtx.shadowColor='cyan'; hCtx.shadowBlur=20;
+      hCtx.strokeStyle=`rgba(0,220,255,${1-l.prog*.4})`;
+      hCtx.lineWidth=2.5;
+      hCtx.beginPath(); hCtx.moveTo(l.x,l.y); hCtx.lineTo(cx,cy); hCtx.stroke();
+      hCtx.strokeStyle=`rgba(255,60,220,${1-l.prog*.4})`;
+      hCtx.lineWidth=1.5;
+      hCtx.beginPath(); hCtx.moveTo(l.x-4,l.y); hCtx.lineTo(cx-4,cy); hCtx.stroke();
+      hCtx.restore(); return true;
+    });
+
+    // Explosions
+    game.explosions=game.explosions.filter(exp=>{
+      exp.r+=2.5; exp.alpha-=0.038;
+      hCtx.save(); hCtx.globalAlpha=exp.alpha;
+      const g2=hCtx.createRadialGradient(exp.x,exp.y,0,exp.x,exp.y,exp.r);
+      g2.addColorStop(0,'rgba(255,230,80,1)');
+      g2.addColorStop(.35,'rgba(255,90,20,.8)');
+      g2.addColorStop(1,'rgba(200,0,50,0)');
+      hCtx.fillStyle=g2;
+      hCtx.beginPath(); hCtx.arc(exp.x,exp.y,exp.r,0,Math.PI*2); hCtx.fill();
+      hCtx.restore();
+      return exp.alpha>0;
+    });
+
+    // Reticle
+    const rcx=HW/2, rcy=HH-40;
+    hCtx.save(); hCtx.strokeStyle='rgba(0,255,200,.85)'; hCtx.lineWidth=1.5;
+    hCtx.shadowColor='cyan'; hCtx.shadowBlur=6;
+    [[-16,-5],[5,0]].forEach(([s,e])=>{ hCtx.beginPath(); hCtx.moveTo(rcx+s,rcy); hCtx.lineTo(rcx+e+12,rcy); hCtx.stroke(); });
+    hCtx.beginPath(); hCtx.moveTo(rcx,rcy-14); hCtx.lineTo(rcx,rcy-5); hCtx.stroke();
+    hCtx.beginPath(); hCtx.moveTo(rcx,rcy+5); hCtx.lineTo(rcx,rcy+14); hCtx.stroke();
+    hCtx.beginPath(); hCtx.arc(rcx,rcy,7.5,0,Math.PI*2); hCtx.stroke();
+    hCtx.restore();
+
+    // HUD
+    hCtx.fillStyle='rgba(0,255,200,.65)';
+    hCtx.font='bold 11px monospace';
+    hCtx.fillText('SHIELDS ██████████ 100%',10,18);
+    hCtx.fillText('AMMO   ████████░░  80%',10,36);
+    hCtx.fillStyle='rgba(255,100,50,.75)';
+    hCtx.fillText(`SCORE: ${String(f*15).padStart(7,'0')}`,HW-120,18);
+    hCtx.fillStyle='rgba(0,200,255,.5)';
+    hCtx.font='10px monospace';
+    hCtx.fillText('PLAYFUL ENGINE v2.0',HW/2-62,HH-8);
+
+    // Scan lines
+    hCtx.fillStyle='rgba(0,0,0,.04)';
+    for(let yl=0;yl<HH;yl+=4) hCtx.fillRect(0,yl,HW,2);
+
+    // Flicker
+    if(f%40<2){ hCtx.fillStyle='rgba(0,200,255,.03)'; hCtx.fillRect(0,0,HW,HH); }
+
+    holoTex.update();
+  }
+
+  /* ──────────────────────────────────────────────────
+     ANIMATION STATE MACHINE
+  ────────────────────────────────────────────────── */
+  let phase='idle'; // idle → typing → paperMove → insert → hologram → game → zoomIn → hold → zoomOut → reveal → done
+  let phaseT=0;
+  let floatJoy=true;     // stop floating during paper move
+  let paperProg=0;
+  let holoProg=0;
+  let joyFaceUser=false;
+  let uiShown=false;
+
+  const PAPER_START_Y = 3.7;
+  const PAPER_SLOT_Y  = 0.09; // local Y of slot in jRoot space (world Y ≈ same since jRoot.y≈0 when frozen)
+
+  function setPhase(p){ phase=p; phaseT=0; setLabel(p); }
+  function setLabel(t){ document.getElementById('phase-label').textContent=t.toUpperCase().replace('_',' ')+'_'; }
+
+  // Scan-line flash on slot edges
+  let slotFlash=0;
+
+  /* ──────────────────────────────────────────────────
+     RENDER LOOP
+  ────────────────────────────────────────────────── */
+  let T=0; // global time
+  scene.registerBeforeRender(()=>{
+    T += 0.016;
+    phaseT += 0.016;
+
+    // Joystick float
+    if(floatJoy){
+      jRoot.position.y = Math.sin(T*0.75)*0.18;
+    }
+
+    // Gentle idle rotation when not in sequence
+    if(phase==='idle'||phase==='typing'){
+      jRoot.rotation.y += 0.004;
+    }
+
+    // Pulsing lights
+    pL.intensity = 3.5 + Math.sin(T*1.6)*0.6;
+    bL.intensity = 2.6 + Math.sin(T*1.2+1)*0.5;
+    oL.intensity = 1.8 + Math.sin(T*2)*0.4;
+
+    // Glow pulse
+    glow.intensity = 0.75 + Math.sin(T*2.5)*0.2;
+
+    // Slot neon pulse (always gentle)
+    const sGlow = 0.4+Math.sin(T*3)*0.3;
+    slotEL.material.emissiveColor = new BABYLON.Color3(sGlow*.2, sGlow*.5, sGlow);
+    slotER.material.emissiveColor = new BABYLON.Color3(sGlow*.2, sGlow*.5, sGlow);
+
+    /* ── PHASE: paperMove ── */
+    if(phase==='paperMove'){
+      paperProg += 0.007;
+      if(paperProg>=1){ paperProg=1; setPhase('insert'); }
+
+      floatJoy=false; jRoot.position.y=0;
+
+      // Tilt paper slightly as it descends
+      const t=easeInOut(paperProg);
+      paper.position.y = PAPER_START_Y + (PAPER_SLOT_Y+0.55 - PAPER_START_Y)*t;
+      paper.rotation.x = Math.sin(t*Math.PI)*0.06;
+      paper.rotation.z = Math.sin(t*Math.PI*2)*0.025;
+
+      // Camera: frame the slot area
+      camT = { alpha:0.05, beta:1.18, radius:isMobile?14:10, targetY:1.2 };
+    }
+
+    /* ── PHASE: insert ── */
+    if(phase==='insert'){
+      paperProg += 0.016;
+      const t=easeIn(Math.min(paperProg,1));
+
+      paper.position.y = PAPER_SLOT_Y+0.55 + (PAPER_SLOT_Y-PAPER_SLOT_Y-0.55)*t;
+      paper.scaling.y = 1-t*0.92;
+      paper.scaling.x = 1-t*0.06;
+
+      // Scan-line flash on slot
+      slotFlash = Math.sin(T*18)*0.5+0.5;
+      slotEL.material.emissiveColor = new BABYLON.Color3(slotFlash*.6, slotFlash*.8, slotFlash);
+      slotER.material.emissiveColor = new BABYLON.Color3(slotFlash*.6, slotFlash*.8, slotFlash);
+
+      // Joystick body pulse
+      if(paperProg>0.4){
+        const p=Math.sin(T*12)*0.15;
+        bodyMat.emissiveColor = new BABYLON.Color3(0.08+p, 0.03, 0.18+p);
+      }
+
+      if(paperProg>=1){
+        paper.isVisible=false;
+        bodyMat.emissiveColor=new BABYLON.Color3(0.04,0.02,0.12);
+        setPhase('hologram');
+      }
+    }
+
+    /* ── PHASE: hologram ── */
+    if(phase==='hologram'){
+      holoProg += 0.012;
+      if(holoProg>=1){ holoProg=1; setPhase('zoomIn'); }
+
+      const t=easeOut(holoProg);
+      holoRoot.scaling.setAll(t);
+      holoRoot.position.y = 3 + t*2.5;
+
+      if(holoProg>0.15 && !game.running) game.running=true;
+
+      // Camera: look up at hologram
+      camT = { alpha:0.05, beta:1.3, radius:isMobile?14:9, targetY:5 };
+    }
+
+    /* ── PHASE: zoomIn ── */
+    if(phase==='zoomIn'){
+      camT = { alpha:0.05, beta:1.25, radius:isMobile?10:6, targetY:6 };
+      if(phaseT>3.5) setPhase('hold');
+    }
+
+    /* ── PHASE: hold ── */
+    if(phase==='hold'){
+      if(phaseT>2) setPhase('zoomOut');
+    }
+
+    /* ── PHASE: zoomOut ── */
+    if(phase==='zoomOut'){
+      camT = { alpha:0.02, beta:1.2, radius:isMobile?18:13, targetY:2.5 };
+      // Joystick faces user
+      jRoot.rotation.y += (0-jRoot.rotation.y)*0.018;
+      jRoot.rotation.z += (0-jRoot.rotation.z)*0.018;
+      if(phaseT>4) setPhase('reveal');
+    }
+
+    /* ── PHASE: reveal ── */
+    if(phase==='reveal' && !uiShown){
+      uiShown=true;
+      document.getElementById('hero-ui').classList.add('show');
+      document.getElementById('phase-label').style.opacity='0';
+      setPhase('done');
+    }
+
+    /* ── PHASE: done – idle animation ── */
+    if(phase==='done'){
+      jRoot.rotation.y += 0.003;
+      floatJoy=true;
+      camT = { alpha:camT.alpha+0.001, beta:1.2, radius:isMobile?18:13, targetY:2.5 };
+    }
+
+    // Draw game
+    drawGame();
+
+    // Smooth camera
+    const spd=0.028;
+    cam.alpha  += (camT.alpha  - cam.alpha )*spd;
+    cam.beta   += (camT.beta   - cam.beta  )*spd;
+    cam.radius += (camT.radius - cam.radius)*spd;
+    cam.target  = BABYLON.Vector3.Lerp(cam.target, new BABYLON.Vector3(0,camT.targetY,0), spd);
+  });
+
+  /* ──────────────────────────────────────────────────
+     SEQUENCE KICKOFF
+  ────────────────────────────────────────────────── */
+  function startSequence(){
+    setTimeout(()=>{
+      setPhase('typing');
+      onTypingComplete = ()=>{
+        setTimeout(()=>{ paperProg=0; setPhase('paperMove'); }, 900);
+      };
+      advanceTyping();
+    }, 600);
+  }
+
+  return { scene, startSequence };
+}
+
+/* ═══════════════════════════════════════════════════════
+   BOOT — called only after Babylon.js is confirmed loaded
+═══════════════════════════════════════════════════════ */
+function boot(){
+  if(typeof BABYLON === 'undefined'){
+    document.getElementById('phase-label').textContent = 'ERROR: BABYLON FAILED TO LOAD';
+    return;
+  }
+  canvas   = document.getElementById('renderCanvas');
+  engine   = new BABYLON.Engine(canvas, true, { antialias:true, stencil:true, preserveDrawingBuffer:true });
+  isMobile = window.innerWidth < 768;
+  const { scene, startSequence } = createScene();(()=>{
+    setTimeout(()=>{
+      const loading = document.getElementById('loading');
+      loading.classList.add('fade');
+      document.getElementById('nav').classList.add('show');
+      setTimeout(()=>{ loading.style.display='none'; startSequence(); }, 1200);
+    }, 2500);
+  });
+
+  engine.runRenderLoop(()=> scene.render());
+  window.addEventListener('resize',()=> engine.resize());
+  document.getElementById('renderCanvas').addEventListener('contextmenu',e=>e.preventDefault());
+}
+
+/* Dynamic loader with fallback CDN */
+(function loadBabylon(){
+  const CDNS = [
+    'https://cdn.babylonjs.com/babylon.js',
+    'https://cdnjs.cloudflare.com/ajax/libs/babylonjs/6.26.0/babylon.js',
+    'https://unpkg.com/babylonjs@6.26.0/babylon.js'
+  ];
+  let idx = 0;
+  function tryLoad(){
+    if(idx >= CDNS.length){ console.error('All Babylon CDNs failed'); return; }
+    const s = document.createElement('script');
+    s.src = CDNS[idx++];
+    s.onload = boot;
+    s.onerror = ()=>{ console.warn('CDN failed, trying next...'); tryLoad(); };
+    document.head.appendChild(s);
+  }
+  tryLoad();
+})();
+</script>
+</body>
+</html>
