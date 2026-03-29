@@ -26,6 +26,18 @@
         overflow-x: hidden;
     }
 
+    /* ⏳ LOADING SCREEN */
+    #loading-screen {
+        position: fixed; inset: 0; z-index: 9999; background: #000;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        transition: opacity 0.8s ease;
+    }
+    .spinner {
+        width: 50px; height: 50px; border: 3px solid rgba(137, 207, 240, 0.2);
+        border-top-color: #89CFF0; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px;
+    }
+    .loading-text { font-family: 'Space Mono', monospace; color: #89CFF0; font-size: 0.9rem; letter-spacing: 2px; text-transform: uppercase; animation: pulse 1.5s infinite; }
+
     #webgl-canvas { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1; outline: none; }
 
     #ui-layer {
@@ -37,6 +49,7 @@
     #scroll-hint {
         position: absolute; bottom: 40px; font-family: 'Space Mono', monospace; font-size: 0.8rem;
         color: rgba(137, 207, 240, 0.8); letter-spacing: 3px; text-transform: uppercase;
+        opacity: 0; /* Hidden until loaded */
         animation: pulse 2s infinite;
     }
 
@@ -87,9 +100,15 @@
 
     @keyframes blink { 50% { opacity: 0; } }
     @keyframes pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+    @keyframes spin { 100% { transform: rotate(360deg); } }
 </style>
 </head>
 <body>
+
+<div id="loading-screen">
+    <div class="spinner"></div>
+    <div class="loading-text" id="load-text">Forging Universe...</div>
+</div>
 
 <canvas id="webgl-canvas"></canvas>
 
@@ -147,12 +166,16 @@ ctx.fillStyle = grad; ctx.fillRect(0,0,1024,1024);
 const gradientTex = new THREE.CanvasTexture(gradCanvas); gradientTex.flipY = false;
 const gradientMat = new THREE.MeshStandardMaterial({ map: gradientTex, roughness: 0.1, metalness: 0.4, emissive: 0x4f46e5, emissiveIntensity: 0.3 });
 
-// 3. IRON MAN HOLOGRAM BEAM
-const video = document.createElement('video');
-video.src = "./gemini_generated_video_36f7ddcd.mp4"; // EXACT FILE NAME
-video.muted = true; video.loop = true; video.playsInline = true; video.crossOrigin = "anonymous";
+// 3. SECURE IRON MAN HOLOGRAM BEAM (CORS FIX APPLIED)
+const secureVideo = document.createElement('video');
+secureVideo.crossOrigin = "anonymous"; // CRITICAL: Must be set BEFORE source
+secureVideo.src = "./gemini_generated_video_36f7ddcd.mp4"; // EXACT FILE NAME
+secureVideo.muted = true; 
+secureVideo.loop = true; 
+secureVideo.playsInline = true;
+secureVideo.autoplay = true;
 
-const videoTex = new THREE.VideoTexture(video);
+const videoTex = new THREE.VideoTexture(secureVideo);
 const holoMat = new THREE.MeshBasicMaterial({ map: videoTex, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, depthWrite: false });
 const holoScreen = new THREE.Mesh(new THREE.PlaneGeometry(5.3, 3), holoMat);
 holoScreen.position.set(0, 3, 0); holoScreen.scaling.set(0, 0, 0); 
@@ -164,8 +187,35 @@ const holoBeam = new THREE.Mesh(beamGeo, beamMat);
 holoBeam.position.set(0, 1.5, 0); 
 controllerGroup.add(holoBeam);
 
-// 4. LOAD YOUR 6MB MODEL (Asynchronously - no loading screen!)
-const loader = new THREE.GLTFLoader();
+// 4. BULLETPROOF LOADING MANAGER & FAILSAFE
+let isLoaded = false;
+
+function hideLoadingScreen() {
+    if (isLoaded) return;
+    isLoaded = true;
+    const ls = document.getElementById('loading-screen');
+    ls.style.opacity = '0';
+    setTimeout(() => { ls.style.display = 'none'; initScrollAnimation(); }, 800);
+}
+
+const manager = new THREE.LoadingManager();
+manager.onLoad = hideLoadingScreen;
+
+manager.onError = function (url) {
+    console.error("Error loading: ", url);
+    document.getElementById('load-text').innerText = "Error Loading 3D Asset. Forcing Start...";
+};
+
+// THE 6-SECOND FAILSAFE
+setTimeout(() => {
+    if (!isLoaded) {
+        console.warn("Model took too long to load. Forcing cinematic start.");
+        hideLoadingScreen();
+    }
+}, 6000);
+
+// LOAD YOUR 6MB MODEL
+const loader = new THREE.GLTFLoader(manager);
 loader.load('./ps5_controller.glb', function(gltf) {
     const model = gltf.scene;
     model.traverse((child) => { 
@@ -173,11 +223,12 @@ loader.load('./ps5_controller.glb', function(gltf) {
     });
     model.scale.set(12, 12, 12); // Adjust if necessary
     controllerGroup.add(model);
-    console.log("Model loaded successfully!");
 });
 
-// 5. MASTER SCROLL TIMELINE (Starts immediately)
+// 5. MASTER SCROLL TIMELINE
 function initScrollAnimation() {
+    gsap.to("#scroll-hint", { opacity: 1, duration: 1 });
+
     const tl = gsap.timeline({ scrollTrigger: { trigger: "body", start: "top top", end: "bottom bottom", scrub: 1 } });
     
     // A. Camera Pull-Back & Drama Lighting (0 to 3)
@@ -209,7 +260,7 @@ function initScrollAnimation() {
     }, null, 5.74); 
 
     // E. Hologram Projects (6 to 7.5)
-    tl.call(() => video.play(), null, 6);
+    tl.call(() => secureVideo.play(), null, 6);
     tl.to(holoScreen.scaling, { x: 1, y: 1, z: 1, duration: 1.5, ease: "back.out(1.2)" }, 6);
     tl.to(holoMat, { opacity: 0.9, duration: 1 }, 6);
     tl.to(beamMat, { opacity: 0.25, duration: 1 }, 6); 
@@ -226,9 +277,6 @@ function initScrollAnimation() {
     tl.to("#bottom-ui", { opacity: 1, y: 0, duration: 1.5, ease: "power2.out" }, 11.5);
     tl.to(".top-nav", { opacity: 1, y: 0, duration: 1.5 }, 11.5);
 }
-
-// Start the animations immediately!
-initScrollAnimation();
 
 // Render Loop
 const camTarget = new THREE.Vector3(0, 0, 0);
